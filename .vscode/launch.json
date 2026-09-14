@@ -13,7 +13,7 @@
             "cwd": "${fileDirname}",
             "MIMode": "gdb",
             "miDebuggerPath": "${env:SCOOP}\\apps\\msys2-cn\\current\\ucrt64\\bin\\gdb.exe",
-            "internalConsoleOptions": "openOnSessionStart"
+            "internalConsoleOptions": "openOnSessionStart",
         },
         {
             "name": "Debug OpenCV on MacOS",

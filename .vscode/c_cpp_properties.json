@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${env:SCOOP}\\apps\\msys2-cn\\current\\ucrt64\\include",
-                "${env:SCOOP}\\apps\\msys2-cn\\current\\ucrt64\\include\\opencv4"
+                "${env:SCOOP}\\apps\\msys2-cn\\current\\ucrt64\\include\\opencv5"
             ],
             "defines": [
                 "_DEBUG",

@@ -1,4 +1,5 @@
 #include <opencv2/opencv.hpp>
+#include <opencv2/geometry.hpp> // OpenCV 5: getRotationMatrix2D 已移入 geometry 模块
 #include <iostream>
 
 int main()

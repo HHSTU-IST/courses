@@ -1,0 +1,34 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "Build OpenCV5 on Windows",
+            "command": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin\\g++.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}.exe",
+                "-I",
+                "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\include",
+                "-I",
+                "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\include\\opencv5",
+                "-L",
+                "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\lib",
+                "-lopencv_core",
+                "-lopencv_highgui",
+                "-lopencv_imgcodecs",
+                "-lopencv_imgproc",
+            ],
+            "options": {
+                "cwd": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        }
+    ],
+    "version": "2.0.0"
+}
