@@ -16,7 +16,11 @@
 
 .workbuddy
 .frames
+articles
 node_modules
 
 vision/*.ipynb
 vision-plus
+
+*.pdf
+_tmp
