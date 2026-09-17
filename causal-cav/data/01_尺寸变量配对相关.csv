@@ -1,0 +1,4 @@
+﻿配对,n,Pearson r,r 95%CI 下,r 95%CI 上
+log T2WI ~ log DWI,31,0.9894,0.9759,0.9974
+log T2WI ~ log SWI,31,0.9861,0.9683,0.9967
+log DWI ~ log SWI,37,0.9946,0.989,0.9979

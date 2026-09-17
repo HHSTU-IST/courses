@@ -1,0 +1,7 @@
+﻿变量,LassoCV,RidgeCV
+log_t2,0,-0.0001
+log_dwi,0.0055,0.0024
+log_swi,0.6231,0.6271
+age_z,0,0
+sex,0,0
+supra,0,0.0001

@@ -1,0 +1,8 @@
+﻿变量A,变量B,偏相关,关系
+log DWI,log SWI,0.625,正
+log T2WI,log DWI,0.489,正
+age_z,Male,-0.375,负
+log T2WI,log SWI,0.354,正
+age_z,Supratentorial,-0.212,负
+Male,Supratentorial,-0.193,负
+log T2WI,Supratentorial,0.165,正

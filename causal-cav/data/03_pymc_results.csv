@@ -1,0 +1,17 @@
+﻿指标,值
+model_C_delta/mean,-0.3582
+model_C_delta/hdi_low,-0.6433
+model_C_delta/hdi_high,-0.0993
+model_C_delta/p_rope_0.1,0.0255
+model_C_delta/covers_zero,否
+model_C_delta/lam_d_shift_vs_A,-0.2569
+model_C_delta/lam_d_in_C,0.7521
+ppc/观测均值,1.9632
+ppc/预测均值,1.9629
+ppc/观测SD,0.6528
+ppc/预测SD,0.657
+ppc/90%区间覆盖比例,0.9744
+sampler/draws,2500
+sampler/tune,2500
+sampler/chains,4
+sampler/smoke,否
