@@ -18,6 +18,7 @@
 _tmp
 .workbuddy
 .frames
+.ipynb_checkpoints
 articles
 node_modules
 
