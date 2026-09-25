@@ -20,10 +20,10 @@ PyTorch 是一个开源的基于 Python 的深度学习库。根据 Papers With 
 
 #### 2.1.2. 安装 PyTorch
 
-PyTorch 可以像其他任何 Python 库或包一样进行安装。本教程中使用的是 PyTorch 2.7.0，为了确保与教程书的兼容性，建议你使用以下命令安装该版本
+PyTorch 可以像其他任何 Python 库或包一样进行安装。本教程中使用的是 PyTorch 2.13.0，为了确保与教程书的兼容性，建议你使用以下命令安装该版本
 
-```shell
-pip install torch==2.7.0
+```bash
+pip install torch==2.13.0
 ```
 
 要检查 PyTorch 的版本，请在 PyTorch 中执行以下代码：
@@ -32,7 +32,7 @@ pip install torch==2.7.0
 import torch
 
 print(torch.__version__)
-# '2.7.0'
+# '2.13.0'
 ```
 
 > Python 库之所以被命名为 PyTorch，主要是因为它是 Torch 库的延续，但适用于 Python（因此称为“PyTorch”）。“Torch”这个名字承认了该库源于 Torch。Torch 是一个广泛支持机器学习算法的科学计算框架，最初使用 Lua 编程语言创建。
