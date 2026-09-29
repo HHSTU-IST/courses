@@ -1,7 +1,7 @@
 {
     "tasks": [
         {
-            "type": "cppbuild",
+            "type": "process",
             "label": "Build OpenCV5 on Windows",
             "command": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin\\g++.exe",
             "args": [
@@ -24,9 +24,6 @@
             "options": {
                 "cwd": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin"
             },
-            "problemMatcher": [
-                "$gcc"
-            ],
             "group": "build"
         }
     ],
