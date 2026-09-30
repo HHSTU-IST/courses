@@ -25,3 +25,5 @@ node_modules
 vision/*.ipynb
 vision-plus
 causal-cav/images/*.png
+
+plan-*
