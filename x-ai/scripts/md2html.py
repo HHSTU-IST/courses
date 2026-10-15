@@ -3,15 +3,25 @@
 
 基于 markdown-it-py（解析）+ Pygments（代码高亮）+ MathJax（公式渲染），
 支持 GFM 表格/删除线、任务列表、GitHub 风格标注（> [!NOTE]）、行内/块级 LaTeX
-公式、标题锚点，输出自带样式、可直接双击打开的单文件 HTML。
+公式、标题锚点、脚注（``[^1]``）与双链（``[[文件#锚点]]``）；Markdown 中的原始
+HTML（``<u>``、``<mark>``、``<center>``、``<div>``、``<video>`` 等）按原样透传，
+不做转义。输出自带样式、可直接双击打开的单文件 HTML。
 
-页面样式位于 ../styles/md2html.css，公式符号映射位于 unicode-math.json，
-二者在生成时读取；Pygments 的高亮配色在运行时按需生成。
+页面样式位于 ../styles/md2html.css，页面脚本位于 md2html.js，公式符号映射位于
+unicode-math.json，三者都在生成时读取。生成的 HTML 里**只有 md2html.css 一个样式
+来源**：Pygments 的代码高亮配色会被同步进该文件的生成区块（见 sync_pygments_css()），
+``--css`` 追加的样式也以 ``<link>`` 引用，因此不会出现额外的 ``<style>`` 内容。
 
 用法::
 
     micromamba run -n kaggle python scripts/md2html.py md-01-task.md
     micromamba run -n kaggle python scripts/md2html.py input.md -o out.html
+
+默认把样式与脚本内联，得到可外发的单文件 HTML；加 ``-l/--link-css`` /
+``--link-js`` 则改为 ``<link>`` / ``<script src>`` 引用，复用共享的
+``styles/md2html.css`` 与 ``scripts/md2html.js``（改一处即刻生效，无需重新生成）::
+
+    micromamba run -n kaggle python scripts/md2html.py md-01-task.md -l --link-js
 """
 
 from __future__ import annotations
@@ -19,6 +29,7 @@ from __future__ import annotations
 import argparse
 import html as html_lib
 import json
+import os
 import re
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -263,10 +274,17 @@ def restore(
 
 
 # --------------------------------------------------------------------------- #
-# 三、markdown-it 扩展：任务列表 / 标注 / 标题锚点
+# 三、markdown-it 扩展：任务列表 / 标注 / 标题锚点 / 脚注 / 双链
 # --------------------------------------------------------------------------- #
 _CALLOUT_RE = re.compile(r"^\[!([A-Za-z]+)\][ \t]*([^\n]*)")
 _TASK_RE = re.compile(r"^\[([ xX])\]\s+")
+# 表格对齐：markdown-it 默认写 style="text-align:center"，这里换成 class
+_TABLE_ALIGN_RE = re.compile(r"^\s*text-align\s*:\s*(left|center|right)\s*;?\s*$")
+# 脚注：引用 [^标签] 与定义 [^标签]: 内容
+_FOOTNOTE_DEF_RE = re.compile(r"^\[\^([^\s\]]+)\]:[ \t]*")
+_FOOTNOTE_REF_RE = re.compile(r"\[\^([^\s\]]+)\]")
+# 双链：[[文件#锚点]] / [[文件#锚点|显示文字]]
+_WIKILINK_RE = re.compile(r"\[\[([^\[\]\n]+?)\]\]")
 
 
 def _matching_close(
@@ -290,8 +308,14 @@ def _token_text(token: Token) -> str:
 
 
 def _slugify(text: str) -> str:
+    """生成锚点 id，规则与 GitHub / VSCode（Markdown All in One）一致。
+
+    保留中日韩文字与 ``[A-Za-z0-9_-]``，其余字符丢弃、空白转连字符，最后统一
+    小写。小写很关键：目录里手写的 ``#markdown-all-in-one`` 只有在 id 同为小写
+    时才能命中 ``Markdown All in One`` 这样的标题。
+    """
     slug = re.sub(r"[^\w\u4e00-\u9fff-]", "", text.strip().replace(" ", "-"))
-    return slug.strip("-") or "section"
+    return slug.strip("-").lower() or "section"
 
 
 def callout_plugin(md: MarkdownIt) -> None:
@@ -394,6 +418,136 @@ def tasklist_plugin(md: MarkdownIt) -> None:
     md.core.ruler.push("task-lists", _rule)
 
 
+def _footnote_ref_html(num: int) -> str:
+    """脚注引用的上标链接。"""
+    return (
+        f'<sup class="footnote-ref">'
+        f'<a href="#fn-{num}" id="fnref-{num}" role="doc-noteref">{num}</a></sup>'
+    )
+
+
+def footnote_plugin(md: MarkdownIt) -> None:
+    """`[^标签]` 引用 + `[^标签]: 内容` 定义 -> 文末脚注区。
+
+    定义独占一个段落（不跨空行），内容按行内 Markdown 渲染；未被引用的定义会被
+    丢弃，引用先按出现顺序编号。
+    """
+
+    def _strip_defs(state) -> None:
+        tokens = state.tokens
+        store: dict[str, str] = state.env.setdefault("footnotes", {})
+        drop: list[int] = []
+        i = 0
+        while i + 2 < len(tokens):
+            if (
+                tokens[i].type == "paragraph_open"
+                and tokens[i + 1].type == "inline"
+                and tokens[i + 2].type == "paragraph_close"
+            ):
+                match = _FOOTNOTE_DEF_RE.match(tokens[i + 1].content)
+                if match:
+                    body = tokens[i + 1].content[match.end() :].strip()
+                    store.setdefault(match.group(1), body)
+                    drop.append(i)
+                    i += 3
+                    continue
+            i += 1
+        for j in reversed(drop):
+            del tokens[j : j + 3]
+
+    def _link_refs(state) -> None:
+        store: dict[str, str] = state.env.get("footnotes") or {}
+        if not store:
+            return
+        order: list[str] = []
+        for token in state.tokens:
+            if token.type != "inline" or not token.children:
+                continue
+            children = token.children
+            idx = 0
+            while idx < len(children):
+                child = children[idx]
+                if child.type != "text":
+                    idx += 1
+                    continue
+                segs: list[tuple[str, str]] = []
+                last = 0
+                for match in _FOOTNOTE_REF_RE.finditer(child.content):
+                    label = match.group(1)
+                    if label not in store:
+                        continue
+                    if label not in order:
+                        order.append(label)
+                    if match.start() > last:
+                        segs.append(("text", child.content[last : match.start()]))
+                    segs.append(("html", _footnote_ref_html(order.index(label) + 1)))
+                    last = match.end()
+                if not segs:
+                    idx += 1
+                    continue
+                if last < len(child.content):
+                    segs.append(("text", child.content[last:]))
+                replaced: list[Token] = []
+                for kind, value in segs:
+                    piece = Token("text" if kind == "text" else "html_inline", "", 0)
+                    piece.content = value
+                    replaced.append(piece)
+                children[idx : idx + 1] = replaced
+                idx += len(replaced)
+
+        if not order:
+            return
+        items = [
+            (
+                f'<li id="fn-{num}"><p>{md.renderInline(store[label])} '
+                f'<a href="#fnref-{num}" class="footnote-backref" '
+                f'role="doc-backlink">\u21a9</a></p></li>'
+            )
+            for num, label in enumerate(order, start=1)
+        ]
+        section = Token("html_block", "", 0)
+        section.content = (
+            '<section class="footnotes" role="doc-endnotes">\n<hr>\n<ol>\n'
+            + "\n".join(items)
+            + "\n</ol>\n</section>\n"
+        )
+        state.tokens.append(section)
+
+    md.core.ruler.before("inline", "footnote-definitions", _strip_defs)
+    md.core.ruler.after("inline", "footnote-references", _link_refs)
+
+
+def wikilink_plugin(md: MarkdownIt) -> None:
+    """`[[文件#锚点]]`（可带 `|显示文字`）-> 指向同目录 HTML 的链接。"""
+
+    def _rule(state, silent: bool) -> bool:
+        if not state.src.startswith("[[", state.pos):
+            return False
+        match = _WIKILINK_RE.match(state.src, state.pos)
+        if not match:
+            return False
+        if not silent:
+            inner = match.group(1).strip()
+            target, _, alias = inner.partition("|")
+            file_part, _, anchor = target.partition("#")
+            file_part, anchor = file_part.strip(), anchor.strip()
+            href = file_part
+            if href and not href.lower().endswith((".html", ".htm")):
+                href = f"{href}.html"
+            if anchor:
+                href = f"{href}#{_slugify(anchor)}"
+            label = alias.strip() or inner
+            token = state.push("html_inline", "", 0)
+            token.content = (
+                f'<a class="wiki-link" href="{html_lib.escape(href, quote=True)}">'
+                f"{html_lib.escape(label, quote=False)}</a>"
+            )
+        state.pos = match.end()
+        return True
+
+    md.inline.ruler.before("link", "wikilink", _rule)
+
+
 def anchor_plugin(md: MarkdownIt) -> None:
     """为标题生成 id 锚点。"""
 
@@ -416,23 +570,51 @@ def anchor_plugin(md: MarkdownIt) -> None:
     md.core.ruler.push("heading-anchors", _rule)
 
 
+def table_align_plugin(md: MarkdownIt) -> None:
+    """把表格对齐的 ``style="text-align:…"`` 换成 class。
+
+    markdown-it 的表格规则会给 ``:---:`` 这类对齐生成行内 style，那属于「样式」，
+    按本工具约定必须落在样式表里，因此改写为 ``class="text-center"`` 等
+    （对应规则见 styles/md2html.css）。
+    """
+
+    def _rule(state) -> None:
+        for token in state.tokens:
+            if token.type not in {"th_open", "td_open"}:
+                continue
+            match = _TABLE_ALIGN_RE.match(str(token.attrGet("style") or ""))
+            if not match:
+                continue
+            token.attrs.pop("style", None)
+            token.attrJoin("class", f"text-{match.group(1)}")
+
+    md.core.ruler.push("table-align", _rule)
+
+
 def build_md() -> MarkdownIt:
-    # default 预设含 GFM 表格、删除线等规则；linkify 依赖未安装，显式关闭
+    # default 预设含 GFM 表格、删除线等规则；linkify 依赖未安装，显式关闭。
+    # html=True：Markdown 里手写的 <u>/<mark>/<center>/<div>/<video> 等原样透传，
+    # 教学文档中的「HTML」「CSS」章节依赖这一条。
     md = MarkdownIt(
         "default",
-        {"html": False, "linkify": False, "typographer": False, "breaks": False},
+        {"html": True, "linkify": False, "typographer": False, "breaks": False},
     )
     md.use(callout_plugin)
     md.use(tasklist_plugin)
+    md.use(footnote_plugin)
+    md.use(wikilink_plugin)
     md.use(anchor_plugin)
+    md.use(table_align_plugin)
     return md
 
 
 # --------------------------------------------------------------------------- #
 # 四、页面样式与装配
 # --------------------------------------------------------------------------- #
-# 页面样式已拆分到 styles/md2html.css，见 load_page_css()
+# 页面样式已拆分到 styles/md2html.css：默认内联，--link-css 时改为 <link> 复用
 PAGE_CSS_FILE = Path(__file__).resolve().parent.parent / "styles" / "md2html.css"
+# 页面脚本（代码块「复制」按钮）已拆分到 scripts/md2html.js，同上
+PAGE_SCRIPT_FILE = Path(__file__).resolve().parent / "md2html.js"
 
 
 def load_page_css(path: Path | None = None) -> str:
@@ -441,6 +623,62 @@ def load_page_css(path: Path | None = None) -> str:
     if not target.is_file():
         raise FileNotFoundError(f"找不到样式表: {target}")
     return target.read_text(encoding="utf-8-sig").strip()
+
+
+def load_page_script(path: Path | None = None) -> str:
+    """读取页面脚本内容。path 为空时使用默认的 scripts/md2html.js。"""
+    target = path or PAGE_SCRIPT_FILE
+    if not target.is_file():
+        raise FileNotFoundError(f"找不到页面脚本: {target}")
+    return target.read_text(encoding="utf-8-sig").strip()
+
+
+# Pygments 配色区块：HTML 里只留一个 <link>，所以高亮规则必须落在样式表中。
+# 区块由这两个标记界定，内容由 sync_pygments_css() 维护。
+_PYGMENTS_BLOCK_RE = re.compile(
+    r"/\* >>> pygments:(\S+)[^\n]*>>> \*/\n(.*?)/\* <<< pygments <<< \*/\n?", re.DOTALL
+)
+
+
+def _pygments_markers(style: str) -> tuple[str, str]:
+    return (
+        f"/* >>> pygments:{style} — 由 scripts/md2html.py 生成，勿手改本区间 >>> */",
+        "/* <<< pygments <<< */",
+    )
+
+
+def sync_pygments_css(path: Path, style: str) -> bool:
+    """把 Pygments 配色同步进样式表的生成区块，返回是否改写了文件。
+
+    幂等：样式名与内容都没变时不碰文件（不改 mtime）；区块不存在时追加到文件末尾。
+    """
+    css = path.read_text(encoding="utf-8-sig")
+    begin, end = _pygments_markers(style)
+    defs = HtmlFormatter(style=style).get_style_defs(".highlight").strip()
+    block = f"{begin}\n{defs}\n{end}\n"
+
+    match = _PYGMENTS_BLOCK_RE.search(css)
+    if match:
+        if match.group(0) == block:
+            return False
+        updated = css[: match.start()] + block + css[match.end() :]
+    else:
+        updated = css.rstrip("\n") + "\n\n" + block
+    path.write_text(updated, encoding="utf-8", newline="\n")
+    return True
+
+
+def relative_href(resource: Path, html_target: Path) -> str:
+    """输出 HTML -> 资源文件的相对路径（始终用 / 分隔）。
+
+    让生成的 HTML 直接引用共享的 ``styles/md2html.css`` / ``scripts/md2html.js``，
+    资源改一处、所有页面立刻生效。跨盘符无法求相对路径时退回绝对路径。
+    """
+    try:
+        rel = os.path.relpath(resource.resolve(), start=html_target.resolve().parent)
+    except ValueError:  # 不同盘符（Windows）
+        return resource.resolve().as_posix()
+    return Path(rel).as_posix()
 
 
 MATHJAX_CONFIG = """
@@ -455,53 +693,25 @@ window.MathJax = {
 };
 """
 
-# 代码块右上角的“复制”按钮（见 styles/md2html.css 中 .copy-btn）
-COPY_BUTTON_SCRIPT = """
-(function () {
-  var COPY_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>';
-  var CHECK_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
-
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(text);
-    }
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
-    return Promise.resolve();
-  }
-
-  document.querySelectorAll('.markdown-body figure.code-block').forEach(function (fig) {
-    var pre = fig.querySelector('pre.highlight');
-    if (!pre) return;
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'copy-btn';
-    btn.title = '复制代码';
-    btn.setAttribute('aria-label', '复制代码');
-    btn.innerHTML = COPY_SVG;
-    btn.addEventListener('click', function () {
-      var code = pre.querySelector('code');
-      copyText((code || pre).innerText).then(function () {
-        btn.classList.add('copied');
-        btn.innerHTML = CHECK_SVG;
-        setTimeout(function () {
-          btn.classList.remove('copied');
-          btn.innerHTML = COPY_SVG;
-        }, 1200);
-      });
-    });
-    fig.appendChild(btn);
-  });
-})();
-"""
-
 
 def build_document(
-    body: str, title: str, page_css: str, pygments_css: str, extra_css: str, math: bool
+    body: str,
+    title: str,
+    *,
+    page_css: str = "",
+    extra_css_href: str | None = None,
+    page_script: str = "",
+    math: bool = True,
+    css_href: str | None = None,
+    script_href: str | None = None,
 ) -> str:
+    """装配完整页面。
+
+    样式只有两种形态，都来自 ``styles/md2html.css``：给出 ``css_href`` 时输出
+    ``<link>`` 外链复用，否则把该文件的内容内联进一个 ``<style>``。除此之外不会
+    产生任何样式——Pygments 配色（见 ``sync_pygments_css()``）与 ``--css`` 追加
+    样式同样走样式表/外链。脚本同理（``--link-js`` 或内联 ``scripts/md2html.js``）。
+    """
     head = [
         "<!DOCTYPE html>",
         '<html lang="zh-CN">',
@@ -509,12 +719,14 @@ def build_document(
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{html_lib.escape(title)}</title>",
-        "<style>",
-        page_css.strip(),
-        pygments_css.strip(),
-        extra_css.strip(),
-        "</style>",
     ]
+    head += [
+        f'<link rel="stylesheet" href="{html_lib.escape(href, quote=True)}">'
+        for href in (css_href, extra_css_href)
+        if href
+    ]
+    if page_css.strip():
+        head += ["<style>", page_css.strip(), "</style>"]
     if math:
         head += [
             "<script>",
@@ -523,15 +735,14 @@ def build_document(
             f'<script id="MathJax-script" async src="{MATHJAX_CDN}"></script>',
         ]
     head += ["</head>", "<body>", '<article class="markdown-body">']
-    tail = [
-        "</article>",
-        "<script>",
-        COPY_BUTTON_SCRIPT.strip(),
-        "</script>",
-        "</body>",
-        "</html>",
-        "",
-    ]
+    tail = ["</article>"]
+    if script_href:
+        tail.append(
+            f'<script src="{html_lib.escape(script_href, quote=True)}"></script>'
+        )
+    elif page_script.strip():
+        tail += ["<script>", page_script.strip(), "</script>"]
+    tail += ["</body>", "</html>", ""]
     return "\n".join(head) + "\n" + body.strip("\n") + "\n" + "\n".join(tail)
 
 
@@ -539,9 +750,7 @@ def build_document(
 # 五、主流程
 # --------------------------------------------------------------------------- #
 def convert(
-    text: str,
-    md: MarkdownIt | None = None,
-    mapping: Mapping[str, str] | None = None,
+    text: str, md: MarkdownIt | None = None, mapping: Mapping[str, str] | None = None
 ) -> str:
     """把 Markdown 源码转换为 HTML 片段（不含 <html> 外壳）。"""
     md = md or build_md()
@@ -565,12 +774,30 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("-t", "--title", help="页面标题（默认取首个一级标题）")
     parser.add_argument(
-        "-s",
-        "--stylesheet",
-        type=Path,
-        help=f"主样式表（默认 {PAGE_CSS_FILE}）",
+        "-s", "--stylesheet", type=Path, help=f"主样式表（默认 {PAGE_CSS_FILE}）"
     )
-    parser.add_argument("--css", type=Path, help="追加的额外 CSS 文件路径")
+    parser.add_argument(
+        "-l",
+        "--link-css",
+        nargs="?",
+        const=PAGE_CSS_FILE,
+        type=Path,
+        metavar="PATH",
+        help="不内联主样式表，改为 <link> 引用以便复用（默认复用 styles/md2html.css，"
+        "href 按输出 HTML 所在目录算相对路径）",
+    )
+    parser.add_argument(
+        "--link-js",
+        nargs="?",
+        const=PAGE_SCRIPT_FILE,
+        type=Path,
+        metavar="PATH",
+        help="不内联页面脚本，改为 <script src> 引用以便复用（默认复用 "
+        "scripts/md2html.js，同上）",
+    )
+    parser.add_argument(
+        "--css", type=Path, help="追加的额外 CSS 文件（以 <link> 引用）"
+    )
     parser.add_argument(
         "-u",
         "--unicode-map",
@@ -578,7 +805,12 @@ def main(argv: list[str] | None = None) -> int:
         help=f"公式符号映射表（默认 {UNICODE_MATH_FILE}）",
     )
     parser.add_argument(
-        "--pygments-style", default="tango", help="Pygments 配色方案"
+        "--script", type=Path, help=f"页面脚本（默认 {PAGE_SCRIPT_FILE}）"
+    )
+    parser.add_argument(
+        "--pygments-style",
+        default="tango",
+        help="代码高亮配色方案，会同步进主样式表的生成区块（默认 tango）",
     )
     parser.add_argument(
         "--fragment", action="store_true", help="只输出片段，不生成完整页面"
@@ -593,27 +825,56 @@ def main(argv: list[str] | None = None) -> int:
 
     text = source.read_text(encoding="utf-8-sig")
     title = args.title or first_heading(text) or source.stem
+    target = args.output or source.with_suffix(".html")
 
+    # --link-css / --link-js 不带值时，沿用 -s/--stylesheet、--script 或默认路径
+    linked_css = args.link_css
+    if linked_css == PAGE_CSS_FILE and args.stylesheet is not None:
+        linked_css = args.stylesheet
+    linked_js = args.link_js
+    if linked_js == PAGE_SCRIPT_FILE and args.script is not None:
+        linked_js = args.script
+
+    css_target = linked_css or args.stylesheet or PAGE_CSS_FILE
     try:
-        page_css = load_page_css(args.stylesheet)
+        if not css_target.is_file():
+            raise FileNotFoundError(f"找不到样式表: {css_target}")
+        if linked_js is not None and not linked_js.is_file():
+            raise FileNotFoundError(f"找不到页面脚本: {linked_js}")
+        if args.css is not None and not args.css.is_file():
+            raise FileNotFoundError(f"找不到额外样式表: {args.css}")
         unicode_math = load_unicode_math(args.unicode_map)
     except FileNotFoundError as exc:
         print(f"[错误] {exc}", file=sys.stderr)
         return 1
 
-    extra_css = args.css.read_text(encoding="utf-8-sig") if args.css else ""
-    pygments_css = HtmlFormatter(style=args.pygments_style).get_style_defs(".highlight")
+    # 高亮配色写进样式表（HTML 里只留 <link>）；配色方案没变时不碰文件
+    if not args.fragment and sync_pygments_css(css_target, args.pygments_style):
+        print(f"[样式] 已同步 Pygments 配色到 {css_target}")
+
+    page_css = "" if linked_css is not None else load_page_css(css_target)
+    css_href = None if linked_css is None else relative_href(linked_css, target)
+    page_script, script_href = load_page_script(args.script), None
+    if linked_js is not None:
+        page_script, script_href = "", relative_href(linked_js, target)
+    extra_css_href = relative_href(args.css, target) if args.css is not None else None
 
     body = convert(text, mapping=unicode_math)
     output_html = (
         body
         if args.fragment
         else build_document(
-            body, title, page_css, pygments_css, extra_css, not args.no_math
+            body,
+            title,
+            page_css=page_css,
+            extra_css_href=extra_css_href,
+            page_script=page_script,
+            math=not args.no_math,
+            css_href=css_href,
+            script_href=script_href,
         )
     )
 
-    target = args.output or source.with_suffix(".html")
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(output_html, encoding="utf-8", newline="\n")
     print(

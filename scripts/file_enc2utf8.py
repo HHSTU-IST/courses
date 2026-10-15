@@ -3,7 +3,6 @@ import sys
 
 
 def convert_files(directory, enc="gbk", extension=".txt"):
-    # 遍历指定目录下的所有文件
     for root, _, files in os.walk(directory):
         for file in files:
             if file.endswith(extension):
@@ -23,7 +22,6 @@ def convert_files(directory, enc="gbk", extension=".txt"):
 
 
 if __name__ == "__main__":
-    # 默认转换当前脚本所在的目录
     target_dir = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
 
     if not os.path.isdir(target_dir):
