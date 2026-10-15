@@ -1,31 +1,3 @@
-#!/usr/bin/env python
-"""Markdown -> HTML 转换器：pandoc 驱动，再补 GitHub Alert。
-
-分两步：
-
-1. **调用 pandoc**（``-f markdown -t html5``，``--wrap=preserve``）得到 HTML 片段；
-2. **在 HTML 上后处理** pandoc 不认的语法：
-
-   - GitHub Alert：``> [!NOTE] 标题`` + 正文 -> ``<aside class="markdown-alert …">``；
-   - 表格对齐：行内 ``style="text-align:…"`` -> ``class="text-…"``；
-   - 双链 ``[[文件#锚点]]`` -> ``<a class="wiki-link">``（代码块内不动）；
-   - 公式里的 Unicode 符号 -> TeX 命令（映射表见 unicode-math.json）；
-   - 单独成段的 ``<link>`` / ``<meta>`` 从 ``<p>`` 里解包。
-
-生成的 HTML 里**只有一个样式来源**：``styles/md2html.css``。pandoc 的代码高亮配色由
-``sync_highlight_css()`` 同步进该文件的生成区块，``--css`` 追加样式也走 ``<link>``，
-因此除该样式表外不会出现任何其他样式。页面脚本为 ``scripts/md2html.js``。
-
-用法::
-
-    micromamba run -n kaggle python scripts/md2html.py md-01-task.md -l --link-js
-    micromamba run -n kaggle python scripts/md2html.py input.md -o out.html
-
-默认把样式与脚本内联，得到可外发的单文件 HTML；加 ``-l/--link-css`` / ``--link-js``
-则改为 ``<link>`` / ``<script src>`` 引用，复用共享的 ``styles/md2html.css`` 与
-``scripts/md2html.js``（改一处即刻生效，无需重新生成）。
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -46,6 +18,8 @@ MATHJAX_CDN = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
 SCRIPT_DIR = Path(__file__).resolve().parent
 # 公式中的 Unicode 符号 -> TeX 命令（提高渲染兼容性），见 load_unicode_math()
 UNICODE_MATH_FILE = SCRIPT_DIR / "unicode-math.json"
+# GitHub Alert 的 octicon 图标（取自 @primer/octicons），见 load_octicons()
+OCTICONS_FILE = SCRIPT_DIR / "octicons.json"
 # 页面样式 / 页面脚本：生成的 HTML 只引用这两个文件
 PAGE_CSS_FILE = SCRIPT_DIR.parent / "styles" / "md2html.css"
 PAGE_SCRIPT_FILE = SCRIPT_DIR / "md2html.js"
@@ -122,18 +96,28 @@ def run_pandoc(
     return _run_pandoc(cmd, source)
 
 
-HIGHLIGHT_CSS_MARKER = "/* CSS for syntax highlighting */"
+_PANDOC_STYLE_RE = re.compile(r"<style>(.*?)</style>", re.DOTALL)
 
 
-def pandoc_highlight_css(program: str, style: str) -> str:
-    """借 pandoc 的独立模式拿到它自己生成的代码高亮 CSS。"""
-    cmd = [program, "--standalone", "--to=html5", highlight_flag(program, style)]
+def pandoc_default_css(
+    program: str, from_format: str, to_format: str, style: str
+) -> str:
+    """取 pandoc 默认模板在独立模式下的 ``<style>`` 内容（含代码高亮规则）。
+
+    样本里必须带一个代码块：pandoc 只在文档真的用到高亮时才输出高亮 CSS。
+    """
+    cmd = [
+        program,
+        "--standalone",
+        f"--from={from_format}",
+        f"--to={to_format}",
+        highlight_flag(program, style),
+    ]
     out = _run_pandoc(cmd, "```python\nx = 1\n```\n")
-    start = out.find(HIGHLIGHT_CSS_MARKER)
-    end = out.find("</style>", start)
-    if start < 0 or end < 0:
-        raise RuntimeError("未能从 pandoc 输出中提取代码高亮 CSS")
-    return textwrap.dedent(out[start + len(HIGHLIGHT_CSS_MARKER) : end]).strip()
+    match = _PANDOC_STYLE_RE.search(out)
+    if match is None:
+        raise RuntimeError("未能从 pandoc 输出中提取默认样式")
+    return textwrap.dedent(match.group(1)).strip()
 
 
 # --------------------------------------------------------------------------- #
@@ -172,6 +156,29 @@ def _matching_blockquote_close(html: str, start: int) -> int:
         if depth == 0:
             return match.start()
     return -1
+
+
+@cache
+def load_octicons(path: Path | None = None) -> Mapping[str, Mapping[str, str]]:
+    """读取 GitHub Alert 用的 octicon 图标表（类型 -> {icon, path}）。"""
+    target = path or OCTICONS_FILE
+    if not target.is_file():
+        raise FileNotFoundError(f"找不到图标表: {target}")
+    with target.open(encoding="utf-8") as fp:
+        data = json.load(fp)
+    return dict(data["icons"])
+
+
+def alert_icon(kind: str) -> str:
+    """生成标注标题前的 octicon，形如 GitHub 自己输出的 ``<svg class="octicon …">``。"""
+    table = load_octicons()
+    entry = table.get(kind) or table["note"]
+    name = entry["icon"]
+    return (
+        f'<svg class="octicon octicon-{name}" viewBox="0 0 16 16" '
+        f'width="16" height="16" aria-hidden="true">'
+        f'<path d="{entry["path"]}"></path></svg>'
+    )
 
 
 def _split_alert_head(html: str, head_end: int) -> tuple[str, str, int] | None:
@@ -218,11 +225,11 @@ def _rewrite_first_alert(html: str) -> str | None:
         if head_body:
             body = f"<p>{head_body}</p>\n{body}".rstrip()
         body_html = f"{body}\n" if body else ""
+        # 与 GitHub 自己生成的 HTML 保持一致：div.markdown-alert + 标题里的 octicon
         replacement = (
-            f'<aside class="markdown-alert markdown-alert-{kind}">'
-            f'<p class="markdown-alert-title">'
-            f'<span class="markdown-alert-icon">!</span>{title}</p>\n'
-            f"{body_html}</aside>"
+            f'<div class="markdown-alert markdown-alert-{kind}">'
+            f'<p class="markdown-alert-title">{alert_icon(kind)}{title}</p>\n'
+            f"{body_html}</div>"
         )
         tail = close + len("</blockquote>")
         return f"{html[: open_match.start()]}{replacement}{html[tail:]}"
@@ -414,30 +421,32 @@ def relative_href(resource: Path, html_target: Path) -> str:
     return Path(rel).as_posix()
 
 
-# 样式表中由本脚本维护的代码高亮区块，避免 HTML 里再出现 <style>
-_HIGHLIGHT_BLOCK_RE = re.compile(
-    r"/\* >>> highlight:(\S+)[^\n]*>>> \*/\n(.*?)/\* <<< highlight <<< \*/\n?",
-    re.DOTALL,
+# 样式表中由本脚本维护的 pandoc 默认样式区块，避免 HTML 里再出现 <style>
+_PANDOC_BLOCK_RE = re.compile(
+    r"/\* >>> pandoc:(\S+)[^\n]*>>> \*/\n(.*?)/\* <<< pandoc <<< \*/\n?", re.DOTALL
 )
 
 
-def _highlight_markers(style: str) -> tuple[str, str]:
+def _pandoc_markers(style: str) -> tuple[str, str]:
     return (
-        f"/* >>> highlight:{style} — 由 scripts/md2html.py 生成，勿手改本区间 >>> */",
-        "/* <<< highlight <<< */",
+        f"/* >>> pandoc:{style} — 由 scripts/md2html.py 生成，勿手改本区间 >>> */",
+        "/* <<< pandoc <<< */",
     )
 
 
-def sync_highlight_css(path: Path, program: str, style: str) -> bool:
-    """把 pandoc 的代码高亮配色同步进样式表的生成区块，返回是否改写了文件。
+def sync_pandoc_css(
+    path: Path, program: str, from_format: str, to_format: str, style: str
+) -> bool:
+    """把 pandoc 默认样式同步进样式表的生成区块，返回是否改写了文件。
 
     幂等：配色方案与内容都没变时不碰文件（不改 mtime）；区块不存在时追加到末尾。
     """
     css = path.read_text(encoding="utf-8-sig")
-    begin, end = _highlight_markers(style)
-    block = f"{begin}\n{pandoc_highlight_css(program, style)}\n{end}\n"
+    begin, end = _pandoc_markers(style)
+    defs = pandoc_default_css(program, from_format, to_format, style)
+    block = f"{begin}\n{defs}\n{end}\n"
 
-    match = _HIGHLIGHT_BLOCK_RE.search(css)
+    match = _PANDOC_BLOCK_RE.search(css)
     if match:
         if match.group(0) == block:
             return False
@@ -573,7 +582,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--highlight-style",
         default="tango",
-        help="代码高亮配色方案，会同步进主样式表的生成区块（默认 tango）",
+        help="代码高亮配色方案，决定同步进样式表的 pandoc 默认样式（默认 tango）",
     )
     parser.add_argument(
         "--fragment", action="store_true", help="只输出片段，不生成完整页面"
@@ -610,17 +619,25 @@ def main(argv: list[str] | None = None) -> int:
         if args.css is not None and not args.css.is_file():
             raise FileNotFoundError(f"找不到额外样式表: {args.css}")
         unicode_math = load_unicode_math(args.unicode_map)
+        load_octicons()  # 标注图标：缺了就在这里报错，别等转换到一半
     except (FileNotFoundError, RuntimeError) as exc:
         print(f"[错误] {exc}", file=sys.stderr)
         return 1
 
-    # 高亮配色写进样式表（HTML 里只留 <link>）；配色方案没变时不碰文件
+    # pandoc 默认样式写进样式表（HTML 里只留 <link>）；没变化时不碰文件
     if not args.fragment:
         try:
-            if sync_highlight_css(css_target, program, args.highlight_style):
-                print(f"[样式] 已同步代码高亮配色到 {css_target}")
+            changed = sync_pandoc_css(
+                css_target,
+                program,
+                args.from_format,
+                args.to_format,
+                args.highlight_style,
+            )
+            if changed:
+                print(f"[样式] 已同步 pandoc 默认样式到 {css_target}")
         except RuntimeError as exc:
-            print(f"[警告] 无法同步代码高亮配色：{exc}", file=sys.stderr)
+            print(f"[警告] 无法同步 pandoc 默认样式：{exc}", file=sys.stderr)
 
     page_css = "" if linked_css is not None else load_page_css(css_target)
     css_href = None if linked_css is None else relative_href(linked_css, target)

@@ -1,620 +1,708 @@
-/* md2html 页面样式表：由 scripts/md2html.py 读取并内联到输出的 HTML 中 */
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
 html {
-    -webkit-text-size-adjust: 100%;
-    scroll-behavior: smooth;
+  color: #1a1a1a;
+  color: light-dark(#1a1a1a, #fdfdfd);
+  background-color: #fdfdfd;
+  background-color: light-dark(#fdfdfd, #1a1a1a);
+  color-scheme: light dark;
 }
 
 body {
-    margin: 0;
-    padding: 2.5rem 1.25rem 5rem;
-    background: #f4f5f7;
-    color: #1f2328;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-        "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC",
-        "Noto Sans CJK SC", sans-serif;
-    font-size: 16px;
-    line-height: 1.75;
-}
-
-.markdown-body {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 3rem 3.5rem;
-    background: #ffffff;
-    border: 1px solid #e4e6ea;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(20, 25, 35, 0.05);
-}
-
-/* ---------- 标题 ---------- */
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3,
-.markdown-body h4,
-.markdown-body h5,
-.markdown-body h6 {
-    margin: 2rem 0 1rem;
-    font-weight: 700;
-    line-height: 1.35;
-    color: #101418;
-}
-
-.markdown-body h1 {
-    margin-top: 0;
-    padding-bottom: .5rem;
-    font-size: 2rem;
-    border-bottom: 2px solid #eceef1;
-}
-
-.markdown-body h2 {
-    padding-bottom: .4rem;
-    font-size: 1.6rem;
-    border-bottom: 1px solid #eceef1;
-}
-
-.markdown-body h3 {
-    font-size: 1.3rem;
-}
-
-.markdown-body h4 {
-    font-size: 1.1rem;
-}
-
-.markdown-body h5 {
-    font-size: 1rem;
-}
-
-.markdown-body h6 {
-    font-size: .95rem;
-    color: #5c6470;
-}
-
-/* ---------- 正文 ---------- */
-.markdown-body p {
-    margin: 0 0 1rem;
-}
-
-.markdown-body strong {
-    font-weight: 700;
-    color: #0d1117;
-}
-
-.markdown-body em {
-    font-style: italic;
-}
-
-.markdown-body del,
-.markdown-body s {
-    color: #6b7280;
-}
-
-.markdown-body mark {
-    background: #fff8c5;
-    color: #8b4513;
-    padding: 0 .2em;
-}
-
-.markdown-body hr {
-    height: 1px;
-    margin: 2.5rem 0;
-    border: 0;
-    background: linear-gradient(90deg, transparent, #d0d7de, transparent);
-}
-
-.markdown-body a {
-    color: #0969da;
-    text-decoration: none;
-    border-bottom: 1px solid rgba(9, 105, 218, .3);
-}
-
-.markdown-body a:hover {
-    border-bottom-color: currentColor;
-}
-
-.markdown-body img {
-    max-width: 100%;
-}
-
-.markdown-body blockquote {
-    margin: 1.25rem 0;
-    padding: .5rem 1.25rem;
-    color: #1f2328;
-    border-left: 4px solid #54aeff;
-    background: #f6f8fa;
-}
-
-.markdown-body blockquote p:last-child {
-    margin-bottom: 0;
-}
-
-/* ---------- 列表 ---------- */
-.markdown-body ul,
-.markdown-body ol {
-    margin: 0 0 1rem;
-    padding-left: 1.6rem;
-}
-
-.markdown-body li {
-    margin: .25rem 0;
-}
-
-.markdown-body li>ul,
-.markdown-body li>ol {
-    margin: .25rem 0;
-}
-
-.markdown-body ol ol {
-    list-style-type: lower-alpha;
-}
-
-.markdown-body ol ol ol {
-    list-style-type: lower-roman;
-}
-
-/* 任务列表：pandoc 输出 <ul class="task-list"><li><label><input type="checkbox"></label> */
-.markdown-body ul.task-list {
-    padding-left: 1.35rem;
-    list-style: none;
-}
-
-.markdown-body ul.task-list li {
-    margin-left: -1.35rem;
-}
-
-.markdown-body ul.task-list input[type="checkbox"] {
-    margin-right: .5rem;
-    accent-color: #0969da;
-}
-
-/* ---------- 代码 ---------- */
-.markdown-body :not(pre) > code {
-    padding: .15em .4em;
-    font-size: .9em;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    color: #c7254e;
-    background: #f6f8fa;
-    border-radius: 4px;
-}
-
-.markdown-body div.sourceCode {
-    position: relative;
-    margin: 1.25rem 0;
-}
-
-/* 代码块的语言角标：md2html.py 把语言写进 data-lang */
-.markdown-body div.sourceCode[data-lang]::before {
-    display: block;
-    padding: 0 0 .45rem;
-    font-size: .78rem;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    color: #8b949e;
-    content: attr(data-lang);
-}
-
-.markdown-body pre {
-    position: relative;
-    margin: 1.25rem 0;
-    padding: 1rem 1.1rem;
-    overflow-x: auto;
-    font-size: .9rem;
-    line-height: 1.6;
-    background: #f6f8fa;
-    border: 0;
-    border-radius: 10px;
-}
-
-.markdown-body div.sourceCode > pre {
-    margin: 0;
-}
-
-.markdown-body pre code {
-    padding: 0;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    font-size: inherit;
-    color: inherit;
-    background: none;
-}
-
-/* 代码块右上角的复制按钮（宿主元素见 scripts/md2html.js） */
-.markdown-body .copy-btn {
-    position: absolute;
-    top: .55rem;
-    right: .55rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    color: #57606a;
-    cursor: pointer;
-    background: #ffffff;
-    border: 1px solid #d8dee3;
-    border-radius: 6px;
-    opacity: .8;
-    transition: opacity .15s ease, color .15s ease, border-color .15s ease;
-}
-
-.markdown-body .copy-btn:hover {
-    opacity: 1;
-    color: #1f2328;
-}
-
-.markdown-body .copy-btn.copied {
-    opacity: 1;
-    color: #1a7f37;
-    border-color: #1a7f37;
-}
-
-.markdown-body .copy-btn svg {
-    display: block;
-    width: 1rem;
-    height: 1rem;
-}
-
-/* ---------- 表格 ---------- */
-.markdown-body table {
-    margin: 1.25rem 0;
-    border-collapse: collapse;
-    border-spacing: 0;
-    width: 100%;
-    display: block;
-    overflow-x: auto;
-}
-
-.markdown-body th,
-.markdown-body td {
-    padding: .6rem .9rem;
-    border: 0;
-    border-bottom: 1px solid #d8dee3;
-    text-align: left;
-}
-
-.markdown-body th:first-child,
-.markdown-body td:first-child {
-    padding-left: 0;
-}
-
-.markdown-body th {
-    font-weight: 700;
-    border-bottom: 2px solid #d1d9e0;
-}
-
-/* 表格对齐：md2html.py 把 pandoc 的行内 style="text-align:…" 换成这些 class */
-.markdown-body th.text-left,
-.markdown-body td.text-left {
-    text-align: left;
-}
-
-.markdown-body th.text-center,
-.markdown-body td.text-center {
-    text-align: center;
-}
-
-.markdown-body th.text-right,
-.markdown-body td.text-right {
-    text-align: right;
-}
-
-/* ---------- 标注 Callout ---------- */
-.markdown-alert {
-    margin: 1.25rem 0;
-    padding: .8rem 1.1rem;
-    border-left: .3rem solid #b8c2cc;
-    border-radius: 8px;
-    background: #f7f8fa;
-}
-
-.markdown-alert>*:last-child {
-    margin-bottom: 0 !important;
-}
-
-.markdown-alert-title {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    margin: 0 0 .4rem;
-    font-weight: 700;
-}
-
-/* 标题前的感叹号徽标（对应源码 [!TYPE] 中的 !） */
-.markdown-alert-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: 1.25em;
-    height: 1.25em;
-    border: 1.5px solid currentColor;
-    border-radius: 50%;
-    font-size: .78em;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.markdown-alert-note {
-    border-left-color: #0969da;
-    background: #eff5fd;
-}
-
-.markdown-alert-note .markdown-alert-title {
-    color: #0a4f9e;
-}
-
-.markdown-alert-tip {
-    border-left-color: #1a7f37;
-    background: #eff8f1;
-}
-
-.markdown-alert-tip .markdown-alert-title {
-    color: #1a7f37;
-}
-
-.markdown-alert-important {
-    border-left-color: #8250df;
-    background: #f5f1fd;
-}
-
-.markdown-alert-important .markdown-alert-title {
-    color: #8250df;
-}
-
-.markdown-alert-warning {
-    border-left-color: #bf8700;
-    background: #fdf8e8;
-}
-
-.markdown-alert-warning .markdown-alert-title {
-    color: #9a6700;
-}
-
-.markdown-alert-caution {
-    border-left-color: #cf222e;
-    background: #fdf0ef;
-}
-
-.markdown-alert-caution .markdown-alert-title {
-    color: #cf222e;
-}
-
-/* ---------- 公式 ---------- */
-/* pandoc 输出 <span class="math inline">\(…\)</span> / <span class="math display">\[…\]</span> */
-.markdown-body .math.inline {
-    white-space: nowrap;
-}
-
-.markdown-body .math.display {
-    display: block;
-    margin: 1.5rem 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    text-align: center;
-}
-
-mjx-container[jax="CHTML"][display="true"] {
-    margin: .6rem 0 !important;
-}
-
-/* ---------- 脚注 ---------- */
-.markdown-body .footnote-ref {
-    font-size: .75em;
-    line-height: 0;
-}
-
-.markdown-body .footnote-ref a {
-    padding: 0 .15em;
-    font-weight: 700;
-    border-bottom: 0;
-}
-
-.markdown-body .footnotes {
-    margin-top: 2.5rem;
-    font-size: .92rem;
-    color: #5c6470;
-}
-
-.markdown-body .footnotes hr {
-    margin: 0 0 1rem;
-}
-
-.markdown-body .footnotes ol {
-    padding-left: 1.4rem;
-}
-
-.markdown-body .footnotes li {
-    margin: .35rem 0;
-}
-
-.markdown-body .footnotes li p {
-    display: inline;
-    margin: 0;
-}
-
-.markdown-body .footnote-back {
-    padding-left: .25em;
-    border-bottom: 0;
-}
-
-/* ---------- 双链 ---------- */
-.markdown-body .wiki-link {
-    border-bottom-style: dashed;
-}
-
-/* ---------- 深色模式 ---------- */
-@media (prefers-color-scheme: dark) {
-    body {
-        background: #16181d;
-        color: #d6dae0;
-    }
-
-    .markdown-body {
-        background: #1d2026;
-        border-color: #2c313a;
-        box-shadow: none;
-    }
-
-    .markdown-body h1,
-    .markdown-body h2,
-    .markdown-body h3,
-    .markdown-body h4,
-    .markdown-body h5,
-    .markdown-body h6 {
-        color: #eef1f5;
-    }
-
-    .markdown-body h1,
-    .markdown-body h2 {
-        border-bottom-color: #2c313a;
-    }
-
-    .markdown-body strong {
-        color: #ffffff;
-    }
-
-    .markdown-body a {
-        color: #6cb6ff;
-    }
-
-    .markdown-body blockquote {
-        color: #d6dae0;
-        background: #22262d;
-        border-left-color: #316dca;
-    }
-
-    .markdown-body :not(pre) > code {
-        color: #ff9ec7;
-        background: #2a2f37;
-    }
-
-    /* pandoc 的高亮配色是浅色主题：用反色 + 色相旋转适配深色背景 */
-    .markdown-body pre {
-        background: #f8f9fb;
-        color: #1f2328;
-        filter: invert(1) hue-rotate(180deg);
-    }
-
-    .markdown-body div.sourceCode[data-lang]::before {
-        color: #98a1ad;
-    }
-
-    .markdown-body .copy-btn {
-        color: #98a1ad;
-        background: #22262d;
-        border-color: #3d444d;
-    }
-
-    .markdown-body .copy-btn.copied {
-        color: #57ab5a;
-        border-color: #57ab5a;
-    }
-
-    .markdown-body th,
-    .markdown-body td {
-        border-bottom-color: #333945;
-    }
-
-    .markdown-body th {
-        border-bottom-color: #3d444d;
-    }
-
-    .markdown-alert {
-        background: #22262d;
-    }
-
-    .markdown-body .footnotes {
-        color: #98a1ad;
-    }
-}
-
-/* ---------- 打印 ---------- */
-@media print {
-    body {
-        background: #fff;
-        padding: 0;
-    }
-
-    .markdown-body {
-        border: 0;
-        box-shadow: none;
-        padding: 0;
-    }
-
-    .markdown-body pre,
-    .markdown-body table,
-    .markdown-alert {
-        break-inside: avoid;
-    }
-}
-
-/* >>> highlight:tango — 由 scripts/md2html.py 生成，勿手改本区间 >>> */
-html { -webkit-text-size-adjust: 100%; }
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-    color: #aaaaaa;
+  margin: 0 auto;
+  max-width: 36em;
+  padding-left: 50px;
+  padding-right: 50px;
+  padding-top: 50px;
+  padding-bottom: 50px;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+}
+
+@media (max-width: 600px) {
+  body {
+    font-size: 0.9em;
+    padding: 12px;
   }
-pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
-div.sourceCode
-  {  background-color: #f8f8f8; }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+
+  h1 {
+    font-size: 1.8em;
+  }
 }
-code span.al { color: #ef2929; } /* Alert */
-code span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
-code span.at { color: #204a87; } /* Attribute */
-code span.bn { color: #0000cf; } /* BaseN */
-code span.cf { color: #204a87; font-weight: bold; } /* ControlFlow */
-code span.ch { color: #4e9a06; } /* Char */
-code span.cn { color: #8f5902; } /* Constant */
-code span.co { color: #8f5902; font-style: italic; } /* Comment */
-code span.cv { color: #8f5902; font-weight: bold; font-style: italic; } /* CommentVar */
-code span.do { color: #8f5902; font-weight: bold; font-style: italic; } /* Documentation */
-code span.dt { color: #204a87; } /* DataType */
-code span.dv { color: #0000cf; } /* DecVal */
-code span.er { color: #a40000; font-weight: bold; } /* Error */
-code span.ex { } /* Extension */
-code span.fl { color: #0000cf; } /* Float */
-code span.fu { color: #204a87; font-weight: bold; } /* Function */
-code span.im { } /* Import */
-code span.in { color: #8f5902; font-weight: bold; font-style: italic; } /* Information */
-code span.kw { color: #204a87; font-weight: bold; } /* Keyword */
-code span.op { color: #ce5c00; font-weight: bold; } /* Operator */
-code span.ot { color: #8f5902; } /* Other */
-code span.pp { color: #8f5902; font-style: italic; } /* Preprocessor */
-code span.sc { color: #ce5c00; font-weight: bold; } /* SpecialChar */
-code span.ss { color: #4e9a06; } /* SpecialString */
-code span.st { color: #4e9a06; } /* String */
-code span.va { color: #000000; } /* Variable */
-code span.vs { color: #4e9a06; } /* VerbatimString */
-code span.wa { color: #8f5902; font-weight: bold; font-style: italic; } /* Warning */
-/* <<< highlight <<< */
+
+@media print {
+  html {
+    color-scheme: light only;
+  }
+
+  html,
+  body,
+  pre,
+  code {
+    background-color: transparent;
+  }
+
+  body,
+  a,
+  a:visited,
+  blockquote {
+    color: black;
+  }
+
+  pre,
+  code {
+    padding: 0;
+  }
+
+  p,
+  h2,
+  h3 {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h2,
+  h3,
+  h4 {
+    page-break-after: avoid;
+  }
+}
+
+p {
+  margin: 1em 0;
+}
+
+a,
+a:visited {
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+svg {
+  height: auto;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 1.4em;
+}
+
+h5,
+h6 {
+  font-size: 1em;
+  font-style: italic;
+}
+
+h6 {
+  font-weight: normal;
+}
+
+ol,
+ul {
+  padding-left: 1.7em;
+  margin-top: 1em;
+}
+
+li>ol,
+li>ul {
+  margin-top: 0;
+}
+
+blockquote {
+  margin: 1em 0 1em 1.7em;
+  padding-left: 1em;
+  border-left: 2px solid;
+  border-color: #e6e6e6;
+  border-color: light-dark(#e6e6e6, #4c4c4c);
+  color: #606060;
+  color: light-dark(#606060, #b6b6b6);
+}
+
+code {
+  white-space: pre-wrap;
+  font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+  font-size: 85%;
+  margin: 0;
+  hyphens: manual;
+}
+
+pre {
+  margin: 1em 0;
+  overflow: auto;
+}
+
+pre code {
+  padding: 0;
+  overflow: visible;
+  overflow-wrap: normal;
+}
+
+.sourceCode {
+  background-color: transparent;
+  overflow: visible;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid currentColor;
+  height: 1px;
+  margin: 1em 0;
+}
+
+table {
+  margin: 1em 0;
+  border-collapse: collapse;
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+table caption {
+  margin-bottom: 0.75em;
+}
+
+tbody {
+  margin-top: 0.5em;
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+}
+
+th {
+  border-top: 1px solid currentColor;
+  padding: 0.25em 0.5em 0.25em 0.5em;
+}
+
+td {
+  padding: 0.125em 0.5em 0.25em 0.5em;
+}
+
+header {
+  margin-bottom: 4em;
+  text-align: center;
+}
+
+#TOC li {
+  list-style: none;
+}
+
+#TOC ul {
+  padding-left: 1.3em;
+}
+
+#TOC>ul {
+  padding-left: 0;
+}
+
+#TOC a:not(:hover) {
+  text-decoration: none;
+}
+
+span.smallcaps {
+  font-variant: small-caps;
+}
+
+div.columns {
+  display: flex;
+  gap: 1.5em;
+}
+
+div.column {
+  flex: auto;
+}
+
+@media screen {
+  div.columns {
+    gap: min(4vw, 1.5em);
+  }
+
+  div.column {
+    overflow-x: auto;
+  }
+}
+
+div.hanging-indent {
+  margin-left: 1.5em;
+  text-indent: -1.5em;
+}
+
+/* The extra [class] is a hack that increases specificity enough to
+   override a similar rule in reveal.js */
+ul.task-list[class] {
+  list-style: none;
+}
+
+ul.task-list li input[type="checkbox"] {
+  font-size: inherit;
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+
+/* CSS for syntax highlighting */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+pre>code.sourceCode {
+  white-space: pre;
+  position: relative;
+}
+
+pre>code.sourceCode>span {
+  display: inline-block;
+  line-height: 1.25;
+}
+
+pre>code.sourceCode>span:empty {
+  height: 1.2em;
+}
+
+.sourceCode {
+  overflow: visible;
+}
+
+code.sourceCode>span {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+div.sourceCode {
+  margin: 1em 0;
+}
+
+pre.sourceCode {
+  margin: 0;
+}
+
+@media screen {
+  div.sourceCode {
+    overflow: auto;
+  }
+}
+
+@media print {
+  pre>code.sourceCode {
+    white-space: pre-wrap;
+  }
+
+  pre>code.sourceCode>span {
+    text-indent: -5em;
+    padding-left: 5em;
+  }
+}
+
+pre.numberSource code {
+  counter-reset: source-line 0;
+}
+
+pre.numberSource code>span {
+  position: relative;
+  left: -4em;
+  counter-increment: source-line;
+}
+
+pre.numberSource code>span>a:first-child::before {
+  content: counter(source-line);
+  position: relative;
+  left: -1em;
+  text-align: right;
+  vertical-align: baseline;
+  border: none;
+  display: inline-block;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  padding: 0 4px;
+  width: 4em;
+  color: #aaaaaa;
+}
+
+pre.numberSource {
+  margin-left: 3em;
+  border-left: 1px solid #aaaaaa;
+  padding-left: 4px;
+}
+
+div.sourceCode {
+  background-color: #f8f8f8;
+}
+
+@media screen {
+  pre>code.sourceCode>span>a:first-child::before {
+    text-decoration: underline;
+  }
+}
+
+code span.al {
+  color: #ef2929;
+}
+
+/* Alert */
+code span.an {
+  color: #8f5902;
+  font-weight: bold;
+  font-style: italic;
+}
+
+/* Annotation */
+code span.at {
+  color: #204a87;
+}
+
+/* Attribute */
+code span.bn {
+  color: #0000cf;
+}
+
+/* BaseN */
+code span.cf {
+  color: #204a87;
+  font-weight: bold;
+}
+
+/* ControlFlow */
+code span.ch {
+  color: #4e9a06;
+}
+
+/* Char */
+code span.cn {
+  color: #8f5902;
+}
+
+/* Constant */
+code span.co {
+  color: #8f5902;
+  font-style: italic;
+}
+
+/* Comment */
+code span.cv {
+  color: #8f5902;
+  font-weight: bold;
+  font-style: italic;
+}
+
+/* CommentVar */
+code span.do {
+  color: #8f5902;
+  font-weight: bold;
+  font-style: italic;
+}
+
+/* Documentation */
+code span.dt {
+  color: #204a87;
+}
+
+/* DataType */
+code span.dv {
+  color: #0000cf;
+}
+
+/* DecVal */
+code span.er {
+  color: #a40000;
+  font-weight: bold;
+}
+
+/* Error */
+code span.ex {}
+
+/* Extension */
+code span.fl {
+  color: #0000cf;
+}
+
+/* Float */
+code span.fu {
+  color: #204a87;
+  font-weight: bold;
+}
+
+/* Function */
+code span.im {}
+
+/* Import */
+code span.in {
+  color: #8f5902;
+  font-weight: bold;
+  font-style: italic;
+}
+
+/* Information */
+code span.kw {
+  color: #204a87;
+  font-weight: bold;
+}
+
+/* Keyword */
+code span.op {
+  color: #ce5c00;
+  font-weight: bold;
+}
+
+/* Operator */
+code span.ot {
+  color: #8f5902;
+}
+
+/* Other */
+code span.pp {
+  color: #8f5902;
+  font-style: italic;
+}
+
+/* Preprocessor */
+code span.sc {
+  color: #ce5c00;
+  font-weight: bold;
+}
+
+/* SpecialChar */
+code span.ss {
+  color: #4e9a06;
+}
+
+/* SpecialString */
+code span.st {
+  color: #4e9a06;
+}
+
+/* String */
+code span.va {
+  color: #000000;
+}
+
+/* Variable */
+code span.vs {
+  color: #4e9a06;
+}
+
+/* VerbatimString */
+code span.wa {
+  color: #8f5902;
+  font-weight: bold;
+  font-style: italic;
+}
+
+/* Warning */
+/* <<< pandoc <<< */
+
+/* ------------------------------------------------------------------ *
+ * 以下为本项目补充的规则
+ * ------------------------------------------------------------------ */
+
+/* ---------- GitHub Alert（GFM 外观） ----------
+ * 结构与样式都照 GitHub 自己的来：div.markdown-alert + 左侧色条 + 标题里的
+ * octicon 图标 + 标题用强调色，没有底色与圆角。
+ * 涉及深浅色的声明一律「浅色兜底 + light-dark()」两行。
+ */
+.markdown-alert {
+  padding: .5rem 1rem;
+  margin: 1em 0;
+  color: inherit;
+  border-left: .25em solid #d0d7de;
+  border-left: .25em solid light-dark(#d0d7de, #3d444d);
+}
+
+.markdown-alert> :first-child {
+  margin-top: 0;
+}
+
+.markdown-alert> :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  display: inline-block;
+  flex: none;
+  margin-right: .5rem;
+  overflow: visible;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: #0969da;
+  border-left-color: light-dark(#0969da, #1f6feb);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: #0969da;
+  color: light-dark(#0969da, #4493f8);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: #1a7f37;
+  border-left-color: light-dark(#1a7f37, #238636);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: #1a7f37;
+  color: light-dark(#1a7f37, #3fb950);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: #8250df;
+  border-left-color: light-dark(#8250df, #8957e5);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: #8250df;
+  color: light-dark(#8250df, #ab7df8);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: #9a6700;
+  border-left-color: light-dark(#9a6700, #9e6a03);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: #9a6700;
+  color: light-dark(#9a6700, #d29922);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: #cf222e;
+  border-left-color: light-dark(#cf222e, #da3633);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: #cf222e;
+  color: light-dark(#cf222e, #f85149);
+}
+
+/* ---------- 代码块：补定位、语言角标与「复制」按钮 ---------- */
+/* pandoc 默认已给出 margin，这里只让复制按钮能相对定位 */
+pre,
+div.sourceCode {
+  position: relative;
+}
+
+/* 语言角标：md2html.py 把围栏语言写进 data-lang */
+div.sourceCode[data-lang]::before {
+  display: block;
+  padding-bottom: .35rem;
+  font-size: .75rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  opacity: .55;
+  content: attr(data-lang);
+}
+
+.copy-btn {
+  position: absolute;
+  top: .55rem;
+  right: .55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  color: #57606a;
+  color: light-dark(#57606a, #98a1ad);
+  cursor: pointer;
+  background: #ffffff;
+  background: light-dark(#ffffff, #22262d);
+  border: 1px solid #d8dee3;
+  border: 1px solid light-dark(#d8dee3, #3d444d);
+  border-radius: 6px;
+  opacity: .8;
+  transition: opacity .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.copy-btn:hover {
+  opacity: 1;
+}
+
+.copy-btn.copied {
+  color: #1a7f37;
+  color: light-dark(#1a7f37, #57ab5a);
+  border-color: currentColor;
+}
+
+.copy-btn svg {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* 有语言角标时把按钮往下挪一点，避免压住角标 */
+div.sourceCode[data-lang] .copy-btn {
+  top: 1.6rem;
+}
+
+/* ---------- 双链（[[文件#锚点]]） ---------- */
+.wiki-link {
+  border-bottom-style: dashed;
+}
+
+/* ---------- 脚注（pandoc 默认不设样式，这里只做排版微调） ---------- */
+.footnote-ref {
+  font-size: .75em;
+  line-height: 0;
+}
+
+.footnote-ref a {
+  padding: 0 .15em;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.footnotes {
+  margin-top: 2.5rem;
+  font-size: .92rem;
+  color: #606060;
+  color: light-dark(#606060, #b6b6b6);
+}
+
+.footnotes ol {
+  padding-left: 1.4rem;
+}
+
+.footnotes li p {
+  display: inline;
+  margin: 0;
+}
+
+.footnote-back {
+  padding-left: .25em;
+  text-decoration: none;
+}
+
+/* ---------- 表格对齐（md2html.py 把 pandoc 的行内 style 换成这些 class） ---------- */
+th.text-center,
+td.text-center {
+  text-align: center;
+}
+
+th.text-left,
+td.text-left {
+  text-align: left;
+}
+
+th.text-right,
+td.text-right {
+  text-align: right;
+}
