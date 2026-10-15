@@ -1,187 +1,205 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Markdown 基础</title>
-<link rel="stylesheet" href="styles/md2html.css">
-<script>
-window.MathJax = {
-  tex: {
-    inlineMath: [['\\(', '\\)']],
-    displayMath: [['\\[', '\\]']],
-    processEscapes: true
-  },
-  chtml: { scale: 1.0 },
-  options: { enableMenu: false, skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
-};
-</script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Markdown 基础</title>
+  <link rel="stylesheet" href="styles/md2html.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']],
+        processEscapes: true
+      },
+      chtml: { scale: 1.0 },
+      options: {
+        enableMenu: false,
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
+
 <body>
-<article class="markdown-body">
-<h1 id="markdown-基础">Markdown 基础</h1>
-<h2 id="环境配置">环境配置</h2>
-<ol>
-<li>打开 PowerShell，输入 <code class="inline-code">winget install vscode</code></li>
-<li>在 VSCode 中找到侧边栏的扩展商店（图标为四个矩形）</li>
-<li>搜索并安装扩展</li>
-<li>点击打开文件夹，新建文件夹，并选择（此时 VSCode 会重启）</li>
-<li>找到文件夹，新建 .md 文件（图标右下角有 + 号）</li>
-</ol>
-<h2 id="扩展要求">扩展要求</h2>
-<ul>
-<li>Markdown All In One</li>
-<li>rumdl</li>
-</ul>
-<p>加入配置（打开settings.json）</p>
-<figure class="code-block"><figcaption class="code-lang">json</figcaption><pre class="highlight"><code><span class="nt">"[markdown]"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">"editor.defaultFormatter"</span><span class="p">:</span><span class="w"> </span><span class="s2">"rvben.rumdl"</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">"editor.codeActionsOnSave"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">"source.fixAll"</span><span class="p">:</span><span class="w"> </span><span class="s2">"explicit"</span>
-<span class="w">    </span><span class="p">},</span>
-<span class="w">    </span><span class="nt">"editor.quickSuggestions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">"other"</span><span class="p">:</span><span class="w"> </span><span class="s2">"on"</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">"comments"</span><span class="p">:</span><span class="w"> </span><span class="s2">"off"</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">"strings"</span><span class="p">:</span><span class="w"> </span><span class="s2">"off"</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nt">"markdown.extension.completion.enabled"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"markdown.extension.theming.decoration.renderLink"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"markdown.extension.theming.decoration.renderParagraph"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"markdown.extension.toc.levels"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2..4"</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">"rumdl.rules.disable"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s2">"MD013"</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">"MD025"</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">"MD029"</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">"MD033"</span>
-<span class="w">  </span><span class="p">],</span>
-</code></pre></figure>
-<h2 id="作业要求">作业要求</h2>
-<p>使用 Markdown 实现本文档内分割线以下部分包含的各种样式</p>
-<ul>
-<li>标题和字体
-<ul>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 标题层级正确（10 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 加粗（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 斜体（对人名均采用斜体，5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 删除线（5 分）</li>
-</ul>
-</li>
-<li>列表
-<ul>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 有序列表（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 无序列表（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 嵌套列表（5 分）</li>
-</ul>
-</li>
-<li>块
-<ul>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 行内代码（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 块级代码（10 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 引用（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 标注（5 分）</li>
-</ul>
-</li>
-<li>表格和公式
-<ul>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 表格（10 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 表格对齐（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 行内公式（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 块级公式
-<ul>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 极限和积分（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 方程组（5 分）</li>
-<li class="task-list-item"><input class="task-list-item-checkbox" type="checkbox" disabled> 矩阵（5 分）</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<p>作业以 .md 文件提交，文件命名模式为：<code class="inline-code">01-学号-姓名.md</code>。</p>
-<hr>
-<h2 id="markdown二级标题">Markdown（二级标题）</h2>
-<p>Markdown 是一种轻量级的<strong>标记语言</strong>（已加粗），由 <em>John Gruber</em>（1973～）与 <em>Aaron Swartz</em>（1986～2013）于 2004 年创造，被网站用于编写说明文件（README）、技术文档或在论坛上发布信息。由于其语法简单，易于读写，且编写出的作品简洁美观，目前也被越来越多的人群用于日常写作、发布电子书甚至书写电子邮件。</p>
-<p>自从有了 Markdown，我们便不必总是使用 <s>Word</s> 了。</p>
-<h3 id="markdown-的优势三级标题">Markdown 的优势（三级标题）</h3>
-<p>简单说，Markdown 有如下优势：</p>
-<ol>
-<li>语法简单，易于学习</li>
-<li>简洁美观，可读性好</li>
-<li>兼容 HTML/CSS，可添加丰富的样式</li>
-<li>易于部署</li>
-</ol>
-<h3 id="通用格式三级标题">通用格式（三级标题）</h3>
-<p>通用格式包括</p>
-<ul>
-<li>文本
-<ul>
-<li>标题</li>
-<li>字体</li>
-</ul>
-</li>
-<li>代码</li>
-<li>公式</li>
-</ul>
-<h3 id="代码三级标题">代码（三级标题）</h3>
-<p>如下是 Python 中 <code class="inline-code">f-string</code>（此为行内代码格式，非高亮格式）语法的一个例子。</p>
-<figure class="code-block"><figcaption class="code-lang">python</figcaption><pre class="highlight"><code><span class="n">price</span> <span class="o">=</span> <span class="mi">59</span>
-<span class="n">txt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"The price is </span><span class="si">{</span><span class="n">price</span><span class="si">}</span><span class="s2"> dollars"</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">txt</span><span class="p">)</span>
-</code></pre></figure>
-<h2 id="微积分与线性代数入门二级标题">微积分与线性代数入门（二级标题）</h2>
-<blockquote>
-<p>数学的本质在于其自由。—— 格奥尔格·康托尔</p>
-</blockquote>
-<p>本教程将通过 Markdown 格式，结合具体数学知识，演示引用、表格、<a href="https://www.cnblogs.com/nowgood/p/Latexstart.html">LaTeX 公式</a>等样式的使用，帮助你同时掌握数学基础与排版技巧。</p>
-<aside class="markdown-alert markdown-alert-note"><p class="markdown-alert-title"><span class="markdown-alert-icon">!</span>LaTeX 公式</p>
-<p>目前 Markdown 也已经支持 LaTeX 语法的公式。在 LaTeX 数学模式中，公式有两种形式——行内公式和行间公式。前者公式嵌入在行内，适用于简单短小的公式；后者居中独占一行，适用于比较长或重要的公式。</p>
-</aside>
-<table>
-<thead>
-<tr>
-<th style="text-align:center">说明</th>
-<th style="text-align:center">语法</th>
-<th style="text-align:center">示例</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:center">上标</td>
-<td style="text-align:center">a^b</td>
-<td style="text-align:center"><span class="math math-inline">\(a^{b}\)</span></td>
-</tr>
-<tr>
-<td style="text-align:center">下标</td>
-<td style="text-align:center">a_b</td>
-<td style="text-align:center"><span class="math math-inline">\(a_{b}\)</span></td>
-</tr>
-</tbody>
-</table>
-<h3 id="极限三级标题">极限（三级标题）</h3>
-<p>极限是微积分的基础，用于描述“变量无限趋近于某值时函数的趋势”。例如：</p>
-<p>重要极限</p>
-<div class="math math-display">\[\lim_{x \to  \infty}\left(1 + \frac{1}{x}\right)^x = e\]</div>
-<p>其中，<span class="math math-inline">\(e\)</span>是自然常数，约等于<span class="math math-inline">\(2.71828\)</span>，是指数函数<span class="math math-inline">\(e^x\)</span>的底数。</p>
-<h3 id="积分三级标题">积分（三级标题）</h3>
-<p>定积分可计算“区间上的总量”，如：</p>
-<div class="math math-display">\[\int_{0}^{2} (x^2 - 2x + 2) dx = \frac{8}{3}\]</div>
-<h3 id="方程组三级标题">方程组（三级标题）</h3>
-<p>狄利克雷函数是一个定义在实数集上的特殊函数，数学家狄利克雷以其名字命名。它的值在有理数处为<span class="math math-inline">\(1\)</span>，在无理数处为<span class="math math-inline">\(0\)</span>。该函数是典型的“病态函数”，在任意点处都不连续、不存在极限，且黎曼不可积但勒贝格可积。</p>
-<div class="math math-display">\[\begin{cases}
-1 &amp; x \text{为有理数} \\
-0 &amp; x \text{为无理数}
-\end{cases}\]</div>
-<h3 id="矩阵三级标题">矩阵（三级标题）</h3>
-<p>范德蒙矩阵是法国数学家范德蒙（Alexandre-Théophile Vandermonde，1735～1796）提出的一种各列为几何级数的矩阵。其形式为：每一行对应于一个点在不同幂次下的值，即第<span class="math math-inline">\(i\)</span>行、第<span class="math math-inline">\(j\)</span>列的元素可表示为<span class="math math-inline">\(\alpha_i^{(j-1)}\)</span>，其中，<span class="math math-inline">\(\alpha_1, \alpha_2,..., \alpha_n\)</span>两两互异。该矩阵在数学和计算科学中有着广泛的应用。</p>
-<div class="math math-display">\[V=
-\begin{pmatrix}
-1 &amp; \alpha_1 &amp; \alpha_1^2 &amp; \ldots  &amp; \alpha_1^{n-1} \\
-1 &amp; \alpha_2 &amp; \alpha_2^2 &amp; \ldots  &amp; \alpha_2^{n-1} \\
-\vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
-1 &amp; \alpha_m &amp; \alpha_m^2 &amp; \ldots  &amp; \alpha_m^{n-1}
-\end{pmatrix}\]</div>
-</article>
-<script src="scripts/md2html.js"></script>
+  <article class="markdown-body">
+    <h1 id="markdown-基础">Markdown 基础</h1>
+    <h2 id="环境配置">环境配置</h2>
+    <ol type="1">
+      <li>打开 PowerShell，输入 <code>winget install vscode</code></li>
+      <li>在 VSCode 中找到侧边栏的扩展商店（图标为四个矩形）</li>
+      <li>搜索并安装扩展</li>
+      <li>点击打开文件夹，新建文件夹，并选择（此时 VSCode 会重启）</li>
+      <li>找到文件夹，新建 .md 文件（图标右下角有 + 号）</li>
+    </ol>
+    <h2 id="扩展要求">扩展要求</h2>
+    <ul>
+      <li>Markdown All In One</li>
+      <li>rumdl</li>
+    </ul>
+    <p>加入配置（打开settings.json）</p>
+    <div class="sourceCode" data-lang="json" id="cb1">
+      <pre
+        class="sourceCode json"><code class="sourceCode json"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;[markdown]&quot;</span><span class="er">:</span> <span class="fu">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;editor.defaultFormatter&quot;</span><span class="fu">:</span> <span class="st">&quot;rvben.rumdl&quot;</span><span class="fu">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;editor.codeActionsOnSave&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;source.fixAll&quot;</span><span class="fu">:</span> <span class="st">&quot;explicit&quot;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">},</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;editor.quickSuggestions&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;other&quot;</span><span class="fu">:</span> <span class="st">&quot;on&quot;</span><span class="fu">,</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;comments&quot;</span><span class="fu">:</span> <span class="st">&quot;off&quot;</span><span class="fu">,</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;strings&quot;</span><span class="fu">:</span> <span class="st">&quot;off&quot;</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span><span class="er">,</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;markdown.extension.completion.enabled&quot;</span><span class="er">:</span> <span class="kw">true</span><span class="er">,</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;markdown.extension.theming.decoration.renderLink&quot;</span><span class="er">:</span> <span class="kw">true</span><span class="er">,</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;markdown.extension.theming.decoration.renderParagraph&quot;</span><span class="er">:</span> <span class="kw">true</span><span class="er">,</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;markdown.extension.toc.levels&quot;</span><span class="er">:</span> <span class="st">&quot;2..4&quot;</span><span class="er">,</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;rumdl.rules.disable&quot;</span><span class="er">:</span> <span class="ot">[</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;MD013&quot;</span><span class="ot">,</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;MD025&quot;</span><span class="ot">,</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;MD029&quot;</span><span class="ot">,</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;MD033&quot;</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span><span class="er">,</span></span></code></pre>
+    </div>
+    <h2 id="作业要求">作业要求</h2>
+    <p>使用 Markdown 实现本文档内分割线以下部分包含的各种样式</p>
+    <ul>
+      <li>标题和字体
+        <ul class="task-list">
+          <li><label><input type="checkbox" />标题层级正确（10 分）</label></li>
+          <li><label><input type="checkbox" />加粗（5 分）</label></li>
+          <li><label><input type="checkbox" />斜体（对人名均采用斜体，5 分）</label></li>
+          <li><label><input type="checkbox" />删除线（5 分）</label></li>
+        </ul>
+      </li>
+      <li>列表
+        <ul class="task-list">
+          <li><label><input type="checkbox" />有序列表（5 分）</label></li>
+          <li><label><input type="checkbox" />无序列表（5 分）</label></li>
+          <li><label><input type="checkbox" />嵌套列表（5 分）</label></li>
+        </ul>
+      </li>
+      <li>块
+        <ul class="task-list">
+          <li><label><input type="checkbox" />行内代码（5 分）</label></li>
+          <li><label><input type="checkbox" />块级代码（10 分）</label></li>
+          <li><label><input type="checkbox" />引用（5 分）</label></li>
+          <li><label><input type="checkbox" />标注（5 分）</label></li>
+        </ul>
+      </li>
+      <li>表格和公式
+        <ul class="task-list">
+          <li><label><input type="checkbox" />表格（10 分）</label></li>
+          <li><label><input type="checkbox" />表格对齐（5 分）</label></li>
+          <li><label><input type="checkbox" />行内公式（5 分）</label></li>
+          <li><label><input type="checkbox" />块级公式</label>
+            <ul class="task-list">
+              <li><label><input type="checkbox" />极限和积分（5 分）</label></li>
+              <li><label><input type="checkbox" />方程组（5 分）</label></li>
+              <li><label><input type="checkbox" />矩阵（5 分）</label></li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <p>作业以 .md 文件提交，文件命名模式为：<code>01-学号-姓名.md</code>。</p>
+    <hr />
+    <h2 id="markdown二级标题">Markdown（二级标题）</h2>
+    <p>Markdown 是一种轻量级的<strong>标记语言</strong>（已加粗），由 <em>John Gruber</em>（1973～）与 <em>Aaron Swartz</em>（1986～2013）于 2004
+      年创造，被网站用于编写说明文件（README）、技术文档或在论坛上发布信息。由于其语法简单，易于读写，且编写出的作品简洁美观，目前也被越来越多的人群用于日常写作、发布电子书甚至书写电子邮件。</p>
+    <p>自从有了 Markdown，我们便不必总是使用 <del>Word</del> 了。</p>
+    <h3 id="markdown-的优势三级标题">Markdown 的优势（三级标题）</h3>
+    <p>简单说，Markdown 有如下优势：</p>
+    <ol type="1">
+      <li>语法简单，易于学习</li>
+      <li>简洁美观，可读性好</li>
+      <li>兼容 HTML/CSS，可添加丰富的样式</li>
+      <li>易于部署</li>
+    </ol>
+    <h3 id="通用格式三级标题">通用格式（三级标题）</h3>
+    <p>通用格式包括</p>
+    <ul>
+      <li>文本
+        <ul>
+          <li>标题</li>
+          <li>字体</li>
+        </ul>
+      </li>
+      <li>代码</li>
+      <li>公式</li>
+    </ul>
+    <h3 id="代码三级标题">代码（三级标题）</h3>
+    <p>如下是 Python 中 <code>f-string</code>（此为行内代码格式，非高亮格式）语法的一个例子。</p>
+    <div class="sourceCode" data-lang="python" id="cb2">
+      <pre
+        class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>price <span class="op">=</span> <span class="dv">59</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>txt <span class="op">=</span> <span class="ss">f&quot;The price is </span><span class="sc">{</span>price<span class="sc">}</span><span class="ss"> dollars&quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(txt)</span></code></pre>
+    </div>
+    <h2 id="微积分与线性代数入门二级标题">微积分与线性代数入门（二级标题）</h2>
+    <blockquote>
+      <p>数学的本质在于其自由。—— 格奥尔格·康托尔</p>
+    </blockquote>
+    <p>本教程将通过 Markdown 格式，结合具体数学知识，演示引用、表格、<a href="https://www.cnblogs.com/nowgood/p/Latexstart.html">LaTeX
+        公式</a>等样式的使用，帮助你同时掌握数学基础与排版技巧。</p>
+    <aside class="markdown-alert markdown-alert-note">
+      <p class="markdown-alert-title"><span class="markdown-alert-icon">!</span>LaTeX 公式</p>
+      <p>目前 Markdown 也已经支持 LaTeX 语法的公式。在 LaTeX 数学模式中，公式有两种形式——行内公式和行间公式。前者公式嵌入在行内，适用于简单短小的公式；后者居中独占一行，适用于比较长或重要的公式。</p>
+    </aside>
+    <table>
+      <thead>
+        <tr>
+          <th class="text-center">说明</th>
+          <th class="text-center">语法</th>
+          <th class="text-center">示例</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-center">上标</td>
+          <td class="text-center">a^b</td>
+          <td class="text-center"><span class="math inline">\(a^{b}\)</span></td>
+        </tr>
+        <tr>
+          <td class="text-center">下标</td>
+          <td class="text-center">a_b</td>
+          <td class="text-center"><span class="math inline">\(a_{b}\)</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <h3 id="极限三级标题">极限（三级标题）</h3>
+    <p>极限是微积分的基础，用于描述“变量无限趋近于某值时函数的趋势”。例如：</p>
+    <p>重要极限</p>
+    <p><span class="math display">\[\lim_{x \to \infty}\left(1 + \frac{1}{x}\right)^x = e\]</span></p>
+    <p>其中，<span class="math inline">\(e\)</span>是自然常数，约等于<span class="math inline">\(2.71828\)</span>，是指数函数<span
+        class="math inline">\(e^x\)</span>的底数。</p>
+    <h3 id="积分三级标题">积分（三级标题）</h3>
+    <p>定积分可计算“区间上的总量”，如：</p>
+    <p><span class="math display">\[\int_{0}^{2} (x^2 - 2x + 2) dx = \frac{8}{3}\]</span></p>
+    <h3 id="方程组三级标题">方程组（三级标题）</h3>
+    <p>狄利克雷函数是一个定义在实数集上的特殊函数，数学家狄利克雷以其名字命名。它的值在有理数处为<span class="math inline">\(1\)</span>，在无理数处为<span
+        class="math inline">\(0\)</span>。该函数是典型的“病态函数”，在任意点处都不连续、不存在极限，且黎曼不可积但勒贝格可积。</p>
+    <p><span class="math display">\[\begin{cases}
+        1 &amp; x \text{为有理数} \\
+        0 &amp; x \text{为无理数}
+        \end{cases}\]</span></p>
+    <h3 id="矩阵三级标题">矩阵（三级标题）</h3>
+    <p>范德蒙矩阵是法国数学家范德蒙（Alexandre-Théophile Vandermonde，1735～1796）提出的一种各列为几何级数的矩阵。其形式为：每一行对应于一个点在不同幂次下的值，即第<span
+        class="math inline">\(i\)</span>行、第<span class="math inline">\(j\)</span>列的元素可表示为<span
+        class="math inline">\(\alpha_i^{(j-1)}\)</span>，其中，<span class="math inline">\(\alpha_1, \alpha_2,...,
+        \alpha_n\)</span>两两互异。该矩阵在数学和计算科学中有着广泛的应用。</p>
+    <p><span class="math display">\[V=
+        \begin{pmatrix}
+        1 &amp; \alpha_1 &amp; \alpha_1^2 &amp; \ldots &amp; \alpha_1^{n-1} \\
+        1 &amp; \alpha_2 &amp; \alpha_2^2 &amp; \ldots &amp; \alpha_2^{n-1} \\
+        \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
+        1 &amp; \alpha_m &amp; \alpha_m^2 &amp; \ldots &amp; \alpha_m^{n-1}
+        \end{pmatrix}\]</span></p>
+  </article>
+  <script src="scripts/md2html.js"></script>
 </body>
+
 </html>

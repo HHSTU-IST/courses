@@ -1,8 +1,9 @@
 /* md2html 页面脚本：由 scripts/md2html.py 读取，内联或外链到生成的 HTML 中。
  *
- * 代码块右上角的「复制」按钮：样式见 styles/md2html.css 中 .copy-btn，
- * 结构由 md2html.py 生成的 <figure class="code-block"> + <pre class="highlight">
- * 决定，改动这里时请一并确认选择器。
+ * 代码块右上角的「复制」按钮：样式见 styles/md2html.css 中 .copy-btn。
+ * 结构由 pandoc 生成——有语言的代码块是
+ *   <div class="sourceCode"><pre class="sourceCode LANG"><code>…</code></pre></div>
+ * 无语言的则是裸 <pre><code>…</code></pre>，两种情况都挂到最近的定位宿主上。
  */
 (function () {
   var COPY_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>';
@@ -20,9 +21,10 @@
     return Promise.resolve();
   }
 
-  document.querySelectorAll('.markdown-body figure.code-block').forEach(function (fig) {
-    var pre = fig.querySelector('pre.highlight');
-    if (!pre) return;
+  document.querySelectorAll('.markdown-body pre').forEach(function (pre) {
+    var parent = pre.parentElement;
+    var host = parent && parent.classList.contains('sourceCode') ? parent : pre;
+
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'copy-btn';
@@ -40,6 +42,6 @@
         }, 1200);
       });
     });
-    fig.appendChild(btn);
+    host.appendChild(btn);
   });
 })();
