@@ -455,6 +455,49 @@ window.MathJax = {
 };
 """
 
+# 代码块右上角的“复制”按钮（见 styles/md2html.css 中 .copy-btn）
+COPY_BUTTON_SCRIPT = """
+(function () {
+  var COPY_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>';
+  var CHECK_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+    return Promise.resolve();
+  }
+
+  document.querySelectorAll('.markdown-body figure.code-block').forEach(function (fig) {
+    var pre = fig.querySelector('pre.highlight');
+    if (!pre) return;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'copy-btn';
+    btn.title = '复制代码';
+    btn.setAttribute('aria-label', '复制代码');
+    btn.innerHTML = COPY_SVG;
+    btn.addEventListener('click', function () {
+      var code = pre.querySelector('code');
+      copyText((code || pre).innerText).then(function () {
+        btn.classList.add('copied');
+        btn.innerHTML = CHECK_SVG;
+        setTimeout(function () {
+          btn.classList.remove('copied');
+          btn.innerHTML = COPY_SVG;
+        }, 1200);
+      });
+    });
+    fig.appendChild(btn);
+  });
+})();
+"""
+
 
 def build_document(
     body: str, title: str, page_css: str, pygments_css: str, extra_css: str, math: bool
@@ -480,7 +523,15 @@ def build_document(
             f'<script id="MathJax-script" async src="{MATHJAX_CDN}"></script>',
         ]
     head += ["</head>", "<body>", '<article class="markdown-body">']
-    tail = ["</article>", "</body>", "</html>", ""]
+    tail = [
+        "</article>",
+        "<script>",
+        COPY_BUTTON_SCRIPT.strip(),
+        "</script>",
+        "</body>",
+        "</html>",
+        "",
+    ]
     return "\n".join(head) + "\n" + body.strip("\n") + "\n" + "\n".join(tail)
 
 
@@ -527,7 +578,7 @@ def main(argv: list[str] | None = None) -> int:
         help=f"公式符号映射表（默认 {UNICODE_MATH_FILE}）",
     )
     parser.add_argument(
-        "--pygments-style", default="friendly", help="Pygments 配色方案"
+        "--pygments-style", default="tango", help="Pygments 配色方案"
     )
     parser.add_argument(
         "--fragment", action="store_true", help="只输出片段，不生成完整页面"

@@ -176,25 +176,23 @@ body {
     padding: .15em .4em;
     font-size: .9em;
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    color: #b5316a;
-    background: #f4f0f8;
-    border-radius: 5px;
+    color: #c7254e;
+    background: #f6f8fa;
+    border-radius: 4px;
 }
 
 .markdown-body figure.code-block {
     margin: 1.25rem 0;
+    position: relative;
 }
 
 .markdown-body figcaption.code-lang {
-    padding: .4rem .9rem;
-    font-size: .8rem;
+    padding: 0 0 .45rem;
+    font-size: .78rem;
     letter-spacing: .04em;
     text-transform: uppercase;
-    color: #57606a;
-    background: #f2f3f5;
-    border: 1px solid #e4e6ea;
-    border-bottom: 0;
-    border-radius: 8px 8px 0 0;
+    color: #8b949e;
+    background: none;
 }
 
 .markdown-body pre.highlight {
@@ -203,13 +201,46 @@ body {
     overflow-x: auto;
     font-size: .9rem;
     line-height: 1.6;
-    background: #f8f9fb;
-    border: 1px solid #e4e6ea;
-    border-radius: 8px;
+    background: #f6f8fa;
+    border: 0;
+    border-radius: 10px;
 }
 
-.markdown-body figure.code-block:has(figcaption) pre.highlight {
-    border-radius: 0 0 8px 8px;
+/* 代码块右上角的复制按钮 */
+.markdown-body .copy-btn {
+    position: absolute;
+    top: .55rem;
+    right: .55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    color: #57606a;
+    cursor: pointer;
+    background: #ffffff;
+    border: 1px solid #d8dee3;
+    border-radius: 6px;
+    opacity: .8;
+    transition: opacity .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.markdown-body .copy-btn:hover {
+    opacity: 1;
+    color: #1f2328;
+}
+
+.markdown-body .copy-btn.copied {
+    opacity: 1;
+    color: #1a7f37;
+    border-color: #1a7f37;
+}
+
+.markdown-body .copy-btn svg {
+    display: block;
+    width: 1rem;
+    height: 1rem;
 }
 
 .markdown-body pre.highlight code {
@@ -387,21 +418,30 @@ mjx-container[jax="CHTML"][display="true"] {
 
     .markdown-body code.inline-code {
         color: #ff9ec7;
-        background: #2b2530;
+        background: #2a2f37;
     }
 
     .markdown-body figcaption.code-lang {
         color: #98a1ad;
-        background: #23272e;
-        border-color: #2c313a;
+        background: none;
     }
 
     /* Pygments 主题为浅色：用反色 + 色相旋转适配深色背景 */
     .markdown-body pre.highlight {
         background: #f8f9fb;
         color: #1f2328;
-        border-color: #2c313a;
         filter: invert(1) hue-rotate(180deg);
+    }
+
+    .markdown-body .copy-btn {
+        color: #98a1ad;
+        background: #22262d;
+        border-color: #3d444d;
+    }
+
+    .markdown-body .copy-btn.copied {
+        color: #57ab5a;
+        border-color: #57ab5a;
     }
 
     .markdown-body th,
