@@ -3,19 +3,17 @@
 规则：
 - 每份作业起始 100 分；
 - 每命中一类语法错误扣 5 分，同类错误多次出现只扣一次；
-- 命中结果写入 json 文件，key 为错误语法的正则表达式，value 为扣除分值；
 - 文件名改为 ``{原文件名}-{得分}.md``。
 
+规则表外置于同目录的 ``errors_md.json``，每条含 name / pattern / note / raw：
+    {"rules": [{"name": "标题缺空格", "pattern": "^#{1,6}[^#\\s]", "note": "...",
+                "raw": false}]}
+``raw`` 为 true 表示该规则匹配未遮蔽的原文（用于 ``$$`` 这类容器本身的语法）。
+
 用法：
-    python scripts/grade_md.py 智能B241-01            # 预演，只打印错误与扣分
-    python scripts/grade_md.py 智能B241-01 --apply    # 改名，不改报告
-    python scripts/grade_md.py 智能B241-01 --report   # 额外写出 json 报告
-
-默认不落盘：所有信息只打印到终端；只有显式给出 ``--report`` 才写
-``reports/`` 下的逐份 json、``summary.json`` 与 ``errors.json``。
-
-说明：围栏代码块内部先被等长空白遮蔽，再执行行级规则，
-避免把代码里的 ``#`` 注释、``>``、缩进误判为 Markdown 语法错误。
+    python scripts/grader_md.py 智能B241-01            # 直接改名，并打印错误与扣分
+    python scripts/grader_md.py 智能B241-01 --dry-run  # 只预演，不改名
+    python scripts/grader_md.py 智能B241-01 --report   # 额外写出 json 报告
 """
 
 from __future__ import annotations
@@ -65,75 +63,38 @@ class Rule:
     raw: bool = False
 
 
-# 规则表：pattern 即 json 中的 key
-RULES: tuple[Rule, ...] = (
-    Rule(
-        "标题缺空格",
-        r"^#{1,6}[^#\s]",
-        "ATX 标题的 # 与标题文字之间必须有空格，否则 # 被当作普通字符",
-    ),
-    Rule(
-        "标题未独占一行",
-        r"[^\n\s#]#{2,6}[ \t]+\S",
-        "标题标记必须位于行首；与上一行正文粘连时不会被解析为标题",
-    ),
-    Rule(
-        "有序列表缺空格",
-        r"^[ \t]*\d{1,9}[.)][^\s\d]",
-        "有序列表标记 1. 之后必须有空格，否则整行退化为普通段落",
-    ),
-    Rule(
-        "无序列表缺空格",
-        r"^[ \t]*[-+](?![ \t\d+-])\S",
-        "无序列表标记 - 或 + 之后必须有空格",
-    ),
-    Rule(
-        "正文误用四空格缩进",
-        r"^ {4,}(?![ \t]*(?:[-*+]|\d+[.)])[ \t])\S",
-        "行首 4 个及以上空格会被解析为代码块，普通段落应顶格书写",
-    ),
-    Rule(
-        "代码围栏未闭合",
-        r"^```[^\n]*$",
-        "起始围栏缺少配对的结束围栏，其后全文被吞进代码块",
-    ),
-    Rule(
-        "裸语言名代替围栏",
-        r"^(?:python|PYTHON|Python|java|JAVA|bash|BASH|sql|SQL|"
-        r"javascript|JavaScript|cpp|C\+\+|HTML|css)[ \t]*$",
-        "语言名必须写在 ``` 之后作为围栏信息串，不能单独占一行",
-    ),
-    Rule(
-        "表格分隔行冒号非法",
-        r"^(?=[^\n]*::)[ \t]*\|?[ \t:|-]*-[ \t:|-]*\|?[ \t]*$",
-        "分隔行单元格只允许 :-- / --: / :--: 三种对齐写法，出现 :: 即非法",
-    ),
-    Rule(
-        "行间公式重复嵌套",
-        r"\$\$[ \t]*\\\[|\\\][ \t]*\$\$",
-        "$$ 已经承担行间公式定界符，内部不得再套 \\[ \\]",
-        raw=True,
-    ),
-    Rule(
-        "强调符内侧有空格",
-        r"(?:(?<=[ \t])|^)(?:\*\*|~~|__)[ \t]\S[^\n]*?(?:\*\*|~~|__)"
-        r"|(?:(?<=[ \t])|^)(?:\*\*|~~|__)\S[^\n]*?[ \t](?:\*\*|~~|__)",
-        "强调符（**, ~~）与文字之间不得有空格，否则不渲染或渲染残缺",
-    ),
-    Rule(
-        "强调符未成对",
-        r"^(?:[^*\n]*\*\*[^*\n]*\*\*)*[^*\n]*\*\*[^*\n]*$",
-        "单行内加粗标记 ** 个数为奇数，加粗无法闭合",
-    ),
-    Rule(
-        "行内代码反引号未配对",
-        r"^(?!```)(?:[^`\n]*`[^`\n]*`)*[^`\n]*`[^`\n]*$",
-        "单行内反引号个数为奇数，行内代码无法闭合",
-    ),
-    Rule(
-        "图片语法残缺", r"^![ \t]*$", "孤立感叹号，通常是 ![](url) 图片语法写坏后的残留"
-    ),
-)
+RULES_PATH = Path(__file__).with_name("errors_md.json")
+
+
+def load_rules(path: Path = RULES_PATH) -> tuple[Rule, ...]:
+    """从 json 规则表读取规则；增删改规则只需改 json。"""
+    data: object = json.loads(path.read_text(encoding="utf-8"))
+    items = data.get("rules") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        raise SystemExit(f"规则文件格式错误，缺少 rules 数组: {path}")
+
+    rules: list[Rule] = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise SystemExit(f"规则条目必须是对象: {item!r}")
+        name, pattern = item.get("name"), item.get("pattern")
+        if not isinstance(name, str) or not isinstance(pattern, str):
+            raise SystemExit(f"规则缺少 name 或 pattern: {item!r}")
+        note = item.get("note")
+        rules.append(
+            Rule(
+                name=name,
+                pattern=pattern,
+                note=note if isinstance(note, str) else "",
+                raw=bool(item.get("raw", False)),
+            )
+        )
+    if not rules:
+        raise SystemExit(f"规则文件为空: {path}")
+    return tuple(rules)
+
+
+RULES: tuple[Rule, ...] = load_rules()
 
 FENCE_BLOCK = re.compile(r"^```[^\n]*\n(?:(?!^```)[\s\S])*^```[^\n]*$", re.MULTILINE)
 MATH_BLOCK = re.compile(r"^[ \t]*\$\$[\s\S]*?\$\$", re.MULTILINE)
@@ -212,7 +173,7 @@ def process(path: Path, apply: bool, out_dir: Path | None) -> FileResult:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Markdown 作业批改")
     parser.add_argument("target", help="作业目录，如 智能B241-01")
-    parser.add_argument("--apply", action="store_true", help="实际改名（默认仅预演）")
+    parser.add_argument("--dry-run", action="store_true", help="只预演，不改名")
     parser.add_argument(
         "--report", action="store_true", help="额外写出 json 报告（默认只打印）"
     )
@@ -224,8 +185,9 @@ def main() -> None:
     if not files:
         raise SystemExit(f"目录中没有 md 文件: {target}")
 
+    apply = not args.dry_run
     out_dir = target / args.out if args.report else None
-    results: list[FileResult] = [process(p, args.apply, out_dir) for p in files]
+    results: list[FileResult] = [process(p, apply, out_dir) for p in files]
 
     width = max(len(r["file"]) for r in results)
     print(f"{'文件'.ljust(width)}  得分  命中规则")
@@ -253,7 +215,7 @@ def main() -> None:
             "init_score": INIT_SCORE,
             "penalty": PENALTY,
             "average": average,
-            "applied": args.apply,
+            "applied": apply,
             "files": results,
         }
         (out_dir / "summary.json").write_text(
@@ -273,7 +235,7 @@ def main() -> None:
 
     print(
         f"\n共 {len(results)} 份，平均 {average} 分"
-        f"{'' if args.apply else '（预演，未改名）'}"
+        f"{'' if apply else '（dry-run，未改名）'}"
     )
 
 
