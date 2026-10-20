@@ -1,0 +1,55 @@
+{
+    "ipynb+m3": {
+        "r2_score(": 5,
+        "mean_squared_error(": 5,
+        "train_test_split(": 5
+    },
+    "ipynb+m5": {
+        "GridSearchCV(": 5,
+        "OneVsOneClassifier(": 5,
+        "OneVsRestClassifier(": 5,
+        "StandardScaler(": 5,
+        "SMOTE(": 5
+    },
+    "ipynb+m6": {
+        "plot_tree(": 5,
+        "AdaBoostClassifier(": 5,
+        "BaggingClassifier(": 5,
+        "ExtraTreesClassifier(": 5,
+        "RandomForestClassifier(": 5,
+        "GradientBoostingClassifier(": 5,
+        "VotingClassifier(": 5
+    },
+    "ipynb+m7": {
+        "StandardScaler(": 5,
+        "silhouette_score(": 5,
+        "DBSCAN(": 5,
+        "KMeans(": 5,
+        "NearestNeighbors(": 5
+    },
+    "ipynb+v": {
+        "from skimage": 10
+    },
+    "ipynb-": {
+        "!pip install": 20,
+        "warnings.filterwarnings": 5,
+        "plt.show": 5,
+        "plt.tight_layout": 5,
+        "plt.figure": 5,
+        "pd\n\n": 5,
+        "pd\nimport numpy ": 5,
+        "load_iris\nimport": 5,
+        "load_iris\niris": 5,
+        "data\nimport": 5,
+        "\ndf =": 5,
+        "\n ": 5,
+        "\n  ": 5,
+        "\n   ": 5,
+        "\ndata =": 5,
+        "=\nfrom ": 5,
+        "\n_": 5
+    },
+    "md": {
+        "\n* ": 10
+    }
+}
