@@ -3,21 +3,27 @@
     "configurations": [
         {
             "name": "Debug OpenCV on Windows",
-            "type": "node",
+            "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}.exe",
             "args": [],
             "cwd": "${fileDirname}",
-            "internalConsoleOptions": "openOnSessionStart",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin;${env:PATH}"
+                }
+            ],
+            "preLaunchTask": "Build OpenCV5 on Windows",
+            "miDebuggerPath": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin\\gdb.exe"
         },
         {
             "name": "Debug OpenCV on MacOS",
-            "type": "node",
+            "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
             "args": [],
-            "cwd": "${fileDirname}",
-            "internalConsoleOptions": "openOnSessionStart"
+            "cwd": "${fileDirname}"
         }
     ]
 }

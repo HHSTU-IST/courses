@@ -1,7 +1,8 @@
 {
+    "version": "2.0.0",
     "tasks": [
         {
-            "type": "process",
+            "type": "cppbuild",
             "label": "Build OpenCV5 on Windows",
             "command": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin\\g++.exe",
             "args": [
@@ -19,13 +20,30 @@
                 "-lopencv_core",
                 "-lopencv_highgui",
                 "-lopencv_imgcodecs",
-                "-lopencv_imgproc",
+                "-lopencv_imgproc"
             ],
             "options": {
                 "cwd": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin"
             },
-            "group": "build"
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Run OpenCV5 on Windows",
+            "type": "shell",
+            "command": "${fileDirname}/${fileBasenameNoExtension}.exe",
+            "options": {
+                "cwd": "${fileDirname}",
+                "env": {
+                    "PATH": "C:\\Scoop\\apps\\msys2-cn\\current\\ucrt64\\bin;${env:PATH}"
+                }
+            },
+            "dependsOn": "Build OpenCV5 on Windows",
+            "dependsOrder": "sequence",
+            "problemMatcher": []
         }
-    ],
-    "version": "2.0.0"
+    ]
 }

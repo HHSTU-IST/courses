@@ -15,8 +15,7 @@
             "compilerPath": "${env:SCOOP}\\apps\\msys2-cn\\current\\ucrt64\\bin\\g++.exe",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "windows-gcc-x64",
-            "configurationProvider": "kylinideteam.cmake-intellisence"
+            "intelliSenseMode": "windows-gcc-x64"
         },
         {
             "name": "macos-eigen",
@@ -28,8 +27,7 @@
             "compilerPath": "/usr/bin/clang++",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "macos-clang-arm64",
-            "configurationProvider": "kylinideteam.cmake-intellisence"
+            "intelliSenseMode": "macos-clang-arm64"
         }
     ],
     "version": 4
