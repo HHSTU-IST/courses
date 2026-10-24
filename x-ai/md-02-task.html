@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.12.1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Markdown 进阶</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      color: light-dark(#1a1a1a, #fdfdfd);
+      background-color: #fdfdfd;
+      background-color: light-dark(#fdfdfd, #1a1a1a);
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+
+    @media print {
+      html {
+        color-scheme: light only;
+      }
+
+      html,
+      body,
+      pre,
+      code {
+        background-color: transparent;
+      }
+
+      body,
+      a,
+      a:visited,
+      blockquote {
+        color: black;
+      }
+
+      pre,
+      code {
+        padding: 0;
+      }
+
+      p,
+      h2,
+      h3 {
+        orphans: 3;
+        widows: 3;
+      }
+
+      h2,
+      h3,
+      h4 {
+        page-break-after: avoid;
+      }
+    }
+
+    p {
+      margin: 1em 0;
+    }
+
+    a,
+    a:visited {
+      color: inherit;
+    }
+
+    img {
+      max-width: 100%;
+    }
+
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin-top: 1.4em;
+    }
+
+    h5,
+    h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+
+    h6 {
+      font-weight: normal;
+    }
+
+    ol,
+    ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+
+    li>ol,
+    li>ul {
+      margin-top: 0;
+    }
+
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid;
+      border-color: #e6e6e6;
+      border-color: light-dark(#e6e6e6, #4c4c4c);
+      color: #606060;
+      color: light-dark(#606060, #b6b6b6);
+    }
+
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+
+    .sourceCode {
+      background-color: transparent;
+      overflow: visible;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid currentColor;
+      height: 1px;
+      margin: 1em 0;
+    }
+
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+
+    table caption {
+      margin-bottom: 0.75em;
+    }
+
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid currentColor;
+      border-bottom: 1px solid currentColor;
+    }
+
+    th {
+      border-top: 1px solid currentColor;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+
+    #TOC li {
+      list-style: none;
+    }
+
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+
+    #TOC>ul {
+      padding-left: 0;
+    }
+
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+
+    span.smallcaps {
+      font-variant: small-caps;
+    }
+
+    div.columns {
+      display: flex;
+      gap: 1.5em;
+    }
+
+    div.column {
+      flex: auto;
+    }
+
+    @media screen {
+      div.columns {
+        gap: min(4vw, 1.5em);
+      }
+
+      div.column {
+        overflow-x: auto;
+      }
+    }
+
+    div.hanging-indent {
+      margin-left: 1.5em;
+      text-indent: -1.5em;
+    }
+
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class] {
+      list-style: none;
+    }
+
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+
+<body>
+  <header id="title-block-header">
+    <h1 class="title">Markdown 进阶</h1>
+  </header>
+  <link rel="stylesheet" type="text/css" href="styles/zero.css">
+
+  <h1 id="扩展要求">扩展要求</h1>
+  <ul>
+    <li>Markdown All In One</li>
+    <li>rumdl</li>
+    <li>Markdown Footnotes</li>
+    <li>Foam</li>
+  </ul>
+  <h1 id="作业要求">作业要求</h1>
+  <p>使用 Markdown 实现本文档内分割线以下部分包含的各种样式</p>
+  <ul>
+    <li>链接
+      <ul class="task-list">
+        <li><label><input type="checkbox" />超链接（5 分）</label></li>
+        <li><label><input type="checkbox" />网络图片（5 分）</label></li>
+        <li><label><input type="checkbox" />脚注（10 分）</label></li>
+        <li><label><input type="checkbox" />文件内跳转（5 分）</label></li>
+        <li><label><input type="checkbox" />目录（5 分）</label></li>
+      </ul>
+    </li>
+    <li>表情（5 分）</li>
+    <li>HTML
+      <ul class="task-list">
+        <li><label><input type="checkbox" />下划线（5 分）</label></li>
+        <li><label><input type="checkbox" />高亮（5 分）</label></li>
+        <li><label><input type="checkbox" />字体颜色（5 分）</label></li>
+      </ul>
+    </li>
+    <li>CSS
+      <ul class="task-list">
+        <li><label><input type="checkbox" />表格居中（5 分）</label></li>
+        <li><label><input type="checkbox" />表格跨列和跨行（5 分）</label></li>
+        <li><label><input type="checkbox" />表头居中（5 分）</label></li>
+        <li><label><input type="checkbox" />表格宽度占页面 80%（5
+            分）</label></li>
+        <li><label><input type="checkbox" />表格奇、偶数行不同色（10
+            分）</label></li>
+        <li><label><input type="checkbox" />自定义高亮背景（与默认不同即可，5
+            分）</label></li>
+        <li><label><input type="checkbox" />自定义有序列表（与默认不同即可，5
+            分）</label></li>
+        <li><label><input type="checkbox" />自定义二级有序列表（与默认不同即可，5
+            分）</label></li>
+        <li><label><input type="checkbox" />流式分栏（5 分）</label></li>
+      </ul>
+    </li>
+  </ul>
+  <p>作业以 .md 和 .css
+    文件提交，文件命名模式为：<code>02-学号-姓名.md</code>和<code>02-学号-姓名.css</code>。</p>
+  <hr />
+  <ul>
+    <li><a href="#扩展要求">扩展要求</a></li>
+    <li><a href="#作业要求">作业要求</a></li>
+    <li><a href="#markdown-编程环境概览二级标题">Markdown
+        编程环境概览（二级标题）</a>
+      <ul>
+        <li><a href="#语法扩展三级标题">语法扩展（三级标题）</a>
+          <ul>
+            <li><a href="#markdown-all-in-one">Markdown All in One</a></li>
+            <li><a href="#rumdl">rumdl</a></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+    <li><a href="#html">HTML</a>
+      <ul>
+        <li><a href="#复杂表格三级标题">复杂表格（三级标题）</a></li>
+        <li><a href="#与-css-及-js-的关系三级标题">与 CSS 及 JS
+            的关系（三级标题）</a></li>
+        <li><a href="#与-xml">与 XML</a></li>
+      </ul>
+    </li>
+  </ul>
+  <h1 id="markdown-编程环境概览二级标题">Markdown
+    编程环境概览（二级标题）</h1>
+  <p>Markdown
+    是一种易于读写的轻量级的<u>标记语言</u>，编写出的作品简洁美观，近年来受到了越来越多的追捧，被广泛地用于日常写作，乃至电子书发表。与此同时，一系列优秀
+    Markdown 编辑器应运而生。其中较为著名的免费应用有 <a href="https://obsidian.md">Obsidian</a>（此为网络链接）和 Typora。</p>
+  <p>VSCode 是当下<mark>最流行</mark>的代码编辑器，拥有丰富的扩展，见<a href="#rumdl">以下部分</a>（此为文件内跳转，跳转至 rumdl 部分），搞定
+    Markdown 自然不在话下。与上面提到的编辑器相比，VSCode 的明显优势有</p>
+  <ul>
+    <li>集成的布局：大纲（outline）、工作区（workspace）；</li>
+    <li>强大的补全：LaTeX 公式；</li>
+    <li>丰富的扩展：方便整合其他工具（详见下文的功能扩展部分）；</li>
+  </ul>
+  <h2 id="语法扩展三级标题">语法扩展（三级标题）</h2>
+  <h3 id="markdown-all-in-one">Markdown All in One</h3>
+  <p>如名称所述，这是个大一统型的扩展，集成了撰写 Markdown
+    时所需要的大部分功能，是 Markdown 类插件中下载榜榜首。可认为是 VSCode
+    中的 Markdown 必备扩展。其功能涵盖：</p>
+  <ul>
+    <li>快捷命令及代码片</li>
+    <li>自动生成标题编号</li>
+    <li>自动生成并更新目录</li>
+    <li>LaTeX 数学公式支持</li>
+  </ul>
+  <p><img src="https://pic2.zhimg.com/80/v2-48bbd284deacef0b5896427e660b2a51_1440w.png" alt="网络图片使用 图片" /></p>
+  <h3 id="rumdl">rumdl</h3>
+  <p>rumdl<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> 是个功能强大的 Markdown
+    语法<font color="orange">检查器</font>（linter）和格式化器（formatter），可以帮助你书写✍（类似表情均有分）出规范的文档，同时避免书写错误导致文档无法渲染。</p>
+  <h1 id="html">HTML</h1>
+  <h2 id="复杂表格三级标题">复杂表格（三级标题）</h2>
+  <p>Markdown 中表格实现相对繁琐，复杂样式的实现完全依赖
+    HTML。需要使用的标签和属性如下：</p>
+  <link rel="stylesheet" type="text/css" href="styles/md.css">
+
+  <center>
+    <table border="2">
+      <tr>
+        <th colspan="3">table</th>
+      </tr>
+      <tr>
+        <th rowspan="3">子标签</th>
+        <td>tr</td>
+        <td>表格行</td>
+      </tr>
+      <tr>
+        <td>th</td>
+        <td>表头单元格</td>
+      </tr>
+      <tr>
+        <td>td</td>
+        <td>数据单元格</td>
+      </tr>
+      <tr>
+        <th rowspan="3">子标签属性</th>
+        <td>colspan</td>
+        <td>跨列合并单元格</td>
+      </tr>
+      <tr>
+        <td>rowspan</td>
+        <td>跨行合并单元格</td>
+      </tr>
+    </table>
+  </center>
+
+  <p>基本的标签对应关系如下所示</p>
+  <p><img src="img/table-label.png" alt="标签对应关系" /></p>
+  <p>Markdown 并不是 HTML 的替代品，而是 HTML 的简化版本。实际上，Markdown
+    的最终目标就是转换为 <mark>HTML</mark>。</p>
+  <h2 id="与-css-及-js-的关系三级标题">与 CSS 及 JS
+    的关系（三级标题）</h2>
+  <p>这三者 99% 的情况下都是搭配使用的，但也不是绝对的，具体关系是：</p>
+  <ol type="1">
+    <li>HTML
+      <ol type="1">
+        <li>与 CSS、JS 是不同的技术，可以独立存在；</li>
+        <li>一般需要 CSS 和 JS 来配合使用，否则效果不理想；</li>
+      </ol>
+    </li>
+    <li>CSS 一般是不能脱离 HTML 或 XML 的；</li>
+    <li>JS
+      <ol type="1">
+        <li>可以脱离 HTML 和 CSS 而独立存在；</li>
+        <li>JS 可以操作 HTML 和 CSS。</li>
+      </ol>
+    </li>
+  </ol>
+  <h2 id="与-xml">与 XML</h2>
+  <p>XML 和 HTML
+    都是标记文本，他们在结构上大致相同，都是以标记的形式来描述信息。</p>
+  <div class="text-columns">
+
+    <p>HTML 文件本质上是一个可以在 Web 浏览器中打开的网页。</p>
+    <p>XML 文件是一种通用文件类型，可用于存储数据，然后根据用于查看 XML
+      文件的软件，这些数据可以呈现为多种格式。</p>
+  </div>
+
+  <section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+    <hr />
+    <ol>
+      <li id="fn1">
+        <p>lint 的意思是绒毛，动词引申为求疵。<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p>
+      </li>
+    </ol>
+  </section>
+</body>
+
+</html>
