@@ -1,0 +1,179 @@
+{
+  "note": "作业2（Markdown 进阶）检查项：给分制。每项命中（patterns 按 mode 组合）记 score 分，全部命中合计 100 分；scope 指明检查 md / css / both，mode 默认 any（任一 pattern 命中即算），all 表示全部 pattern 都须命中。",
+  "items": [
+    {
+      "name": "超链接",
+      "score": 5,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["(?<!!)\\[[^\\]\\n]*\\]\\(https?://[^)\\n]*\\)"],
+      "note": "网络超链接 [文字](http…)；图片语法内部的链接可能被误计，人工复核"
+    },
+    {
+      "name": "网络图片",
+      "score": 5,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["!\\[[^\\]\\n]*\\]\\(https?://[^)\\n]*\\)"],
+      "note": "![说明](http…) 才是网络图片，本地图片（如 image.png）不算"
+    },
+    {
+      "name": "脚注",
+      "score": 10,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["^\\[\\^[^\\]\\n]+\\]:[ \\t]*\\S"],
+      "note": "脚注定义 [^1]: …；正文只有引用 [^1] 而无定义不算"
+    },
+    {
+      "name": "文件内跳转",
+      "score": 5,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["^(?![ \\t]*[-*+][ \\t])[^\\n]*\\]\\(#[^)\\n]*\\)"],
+      "note": "正文段落中的 [文字](#锚点) 跳转；目录列表行不算"
+    },
+    {
+      "name": "目录",
+      "score": 5,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["^[ \\t]*[-*+][ \\t]+[^\\n]*\\]\\(#[^)\\n]*\\)"],
+      "note": "以列表形式组织的内链目录"
+    },
+    {
+      "name": "表情",
+      "score": 5,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["[☀-➿🀀-🫿]"],
+      "note": "Unicode 表情符号（✍、✅、😀 等）"
+    },
+    {
+      "name": "下划线",
+      "score": 5,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["<u[ \\t>]"],
+      "note": "<u>…</u>"
+    },
+    {
+      "name": "高亮",
+      "score": 5,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["<mark[ \\t>]"],
+      "note": "<mark>…</mark>"
+    },
+    {
+      "name": "字体颜色",
+      "score": 5,
+      "scope": "md",
+      "mode": "any",
+      "patterns": ["<(?:font|span)[^>\\n]*color", "color[ \\t]*:"],
+      "note": "<font color=…> 或 <span style=\"color:…\">"
+    },
+    {
+      "name": "表格居中",
+      "score": 5,
+      "scope": "both",
+      "mode": "any",
+      "patterns": [
+        "table[^{\\n]*\\{[^}]*margin[^}]*auto",
+        "<center[ \\t>]",
+        "<table[^>\\n]*align[ \\t]*="
+      ],
+      "note": "CSS margin auto / <center> 包裹 / align 属性，任一即可"
+    },
+    {
+      "name": "表格跨列和跨行",
+      "score": 5,
+      "scope": "both",
+      "mode": "all",
+      "patterns": ["colspan[ \\t]*=", "rowspan[ \\t]*="],
+      "note": "colspan 与 rowspan 缺一不可"
+    },
+    {
+      "name": "表头居中",
+      "score": 5,
+      "scope": "both",
+      "mode": "any",
+      "patterns": [
+        "th[^{\\n]*\\{[^}]*text-align[ \\t]*:[^;}]*center",
+        "<th[^>\\n]*(?:text-align|align)[^>\\n]*center",
+        "style=\"[^\"\\n]*text-align[ \\t]*:[ \\t]*center"
+      ],
+      "note": "CSS 中 th 选择器居中，或 th 上内联居中"
+    },
+    {
+      "name": "表格宽度占页面 80%",
+      "score": 5,
+      "scope": "both",
+      "mode": "any",
+      "patterns": [
+        "table[^{\\n]*\\{[^}]*width[ \\t]*:[ \\t]*80%",
+        "<table[^>\\n]*width[ \\t]*=[ \\t]*[\"']?80%"
+      ],
+      "note": "table 宽度 80%"
+    },
+    {
+      "name": "表格奇、偶数行不同色",
+      "score": 10,
+      "scope": "both",
+      "mode": "all",
+      "patterns": [
+        "nth-child[ \\t]*\\([ \\t]*(?:odd|2n[ \\t]*\\+[ \\t]*1)[ \\t]*\\)",
+        "nth-child[ \\t]*\\([ \\t]*(?:even|2n)[ \\t]*\\)"
+      ],
+      "note": "奇偶选择器须同时出现；两色是否确实不同需人工复核"
+    },
+    {
+      "name": "自定义高亮",
+      "score": 5,
+      "scope": "both",
+      "mode": "any",
+      "patterns": [
+        "mark[^{\\n]*\\{[^}]*background",
+        "<mark[^>\\n]*style=\"[^\"\\n]*background",
+        "highlight[^{\\n]*\\{[^}]*background"
+      ],
+      "note": "与默认不同即可：zero.css 未定义 mark 背景，凡自定义背景色即算"
+    },
+    {
+      "name": "自定义有序列表",
+      "score": 5,
+      "scope": "css",
+      "mode": "any",
+      "patterns": [
+        "counter-(?:reset|increment)",
+        "li[^{\\n]*::(?:before|marker)",
+        "list-style(?:-type)?[ \\t]*:[ \\t]*(?!decimal\\b)"
+      ],
+      "note": "与默认 decimal 不同：计数器 / ::before / ::marker / 其他 list-style；是否美观人工复核"
+    },
+    {
+      "name": "自定义二级有序列表",
+      "score": 5,
+      "scope": "css",
+      "mode": "any",
+      "patterns": [
+        "ol[^{\\n]*ol[^{\\n]*\\{",
+        "\\.[^{,\\n]*\\bol\\b[^{,\\n]*\\{",
+        "ol[ \\t]*>[ \\t]*li[ \\t]*>[ \\t]*ol"
+      ],
+      "note": "对嵌套 ol 单独定义样式（如第二级计数器或不同编号风格）"
+    },
+    {
+      "name": "流式分栏",
+      "score": 5,
+      "scope": "both",
+      "mode": "any",
+      "patterns": [
+        "column-(?:count|gap|rule)[ \\t]*:",
+        "columns[ \\t]*:",
+        "display[ \\t]*:[ \\t]*flex"
+      ],
+      "note": "多栏流式布局（column-count / columns）；flex 两栏由人工复核决定是否给分"
+    }
+  ]
+}
