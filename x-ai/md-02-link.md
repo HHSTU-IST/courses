@@ -1,52 +1,5 @@
 # Markdown 教程 2
 
-## 语法扩展
-
-VSCode 默认是支持 Markdown 的，但还是有必要安装下面的扩展提高写作效率。
-
-### Markdown All in One
-
-如名称所述，这是个大一统型的扩展，集成了撰写 Markdown 时所需要的大部分功能，是 Markdown 类插件中下载榜榜首。可认为是 VSCode 中的 Markdown 必备扩展。其功能涵盖：
-
-- 快捷命令及代码片
-- 自动生成标题编号
-- 自动生成并更新目录
-- LaTeX 数学公式支持
-
-![Markdown All in One](https://pic2.zhimg.com/80/v2-48bbd284deacef0b5896427e660b2a51_1440w.png)
-
-```json
-{
-    "[markdown]": {
-    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
-    "editor.codeActionsOnSave": {
-      "source.fixAll": "explicit"
-    },
-    "editor.quickSuggestions": {
-      "other": "on",
-      "comments": "off",
-      "strings": "off"
-    }
-  },
-  "markdown.extension.toc.levels": "2..4",
-}
-```
-
-### rumdl
-
-rumdl 是个功能强大的 Markdown 语法检查器（linter）和格式化器（formatter），可以帮助你书写出规范的文档，同时避免书写错误导致文档无法渲染。个人观点，认为这个也是必装扩展。
-
-```json
-{
-  "rumdl.rules.disable": [
-    "MD013",
-    "MD025",
-    "MD029",
-    "MD033"
-  ],
-}
-```
-
 ## 链接
 
 ### 超链接
@@ -85,9 +38,6 @@ Markdown 代码、公式语法请参考 [[md-01-base#代码]]。
 
 ### 目录
 
-- [语法扩展](#语法扩展)
-  - [Markdown All in One](#markdown-all-in-one)
-  - [rumdl](#rumdl)
 - [链接](#链接)
   - [超链接](#超链接)
   - [图片](#图片)
@@ -170,7 +120,7 @@ Markdown 代码、公式语法请参考 [[md-01-base#代码]]。
 <center>
 
 | 标签/属性 |       功能/作用        |
-|:---------:|:----------------------:|
+| :-------: | :--------------------: |
 | `<table>` |      定义表格容器      |
 |  `<tr>`   |       定义表格行       |
 |  `<th>`   |     定义表头单元格     |

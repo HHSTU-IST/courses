@@ -8,16 +8,30 @@
 4. 点击打开文件夹，新建文件夹，并选择（此时 VSCode 会重启）
 5. 找到文件夹，新建 .md 文件（图标右下角有 + 号）
 
-## 扩展要求
+## 语法扩展
+
+VSCode 默认是支持 Markdown 的，但还是有必要安装下面的扩展提高写作效率。
 
 - Markdown All In One
 - rumdl
 
+### Markdown All in One
+
+如名称所述，这是个大一统型的扩展，集成了撰写 Markdown 时所需要的大部分功能，是 Markdown 类插件中下载榜榜首。可认为是 VSCode 中的 Markdown 必备扩展。其功能涵盖：
+
+- 快捷命令及代码片
+- 自动生成标题编号
+- 自动生成并更新目录
+- LaTeX 数学公式支持
+
+![Markdown All in One](https://pic2.zhimg.com/80/v2-48bbd284deacef0b5896427e660b2a51_1440w.png)
+
 加入配置（打开settings.json）
 
 ```json
-"[markdown]": {
-    "editor.defaultFormatter": "rvben.rumdl",
+{
+    "[markdown]": {
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
     "editor.codeActionsOnSave": {
       "source.fixAll": "explicit"
     },
@@ -27,16 +41,23 @@
       "strings": "off"
     }
   },
-  "markdown.extension.completion.enabled": true,
-  "markdown.extension.theming.decoration.renderLink": true,
-  "markdown.extension.theming.decoration.renderParagraph": true,
   "markdown.extension.toc.levels": "2..4",
+}
+```
+
+### rumdl
+
+rumdl 是个功能强大的 Markdown 语法检查器（linter）和格式化器（formatter），可以帮助你书写出规范的文档，同时避免书写错误导致文档无法渲染。个人观点，认为这个也是必装扩展。
+
+```json
+{
   "rumdl.rules.disable": [
     "MD013",
     "MD025",
     "MD029",
     "MD033"
   ],
+}
 ```
 
 ## 作业要求
