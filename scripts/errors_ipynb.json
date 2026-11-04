@@ -28,7 +28,8 @@
         "NearestNeighbors(": 5
     },
     "ipynb+v": {
-        "from skimage": 10
+        "from skimage": 10,
+        "import cv2": 10
     },
     "ipynb-": {
         "!pip install": 20,
@@ -42,9 +43,6 @@
         "load_iris\niris": 5,
         "data\nimport": 5,
         "\ndf =": 5,
-        "\n ": 5,
-        "\n  ": 5,
-        "\n   ": 5,
         "\ndata =": 5,
         "=\nfrom ": 5,
         "\n_": 5
