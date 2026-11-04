@@ -30,9 +30,12 @@
     "ipynb+v": {
         "from skimage": 10,
         "import cv2": 10,
+        "cv2.": 5,
         "import numpy": 5,
         "import matplotlib": 5,
-        "plt.subplots": 5
+        "plt.subplots": 5,
+        "plt.rcParams": 5,
+        "f\"": 5
     },
     "ipynb+v4": {
         "cv2.GaussianBlur": 5,
