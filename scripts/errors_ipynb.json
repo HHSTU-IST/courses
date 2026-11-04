@@ -29,7 +29,33 @@
     },
     "ipynb+v": {
         "from skimage": 10,
-        "import cv2": 10
+        "import cv2": 10,
+        "import numpy": 5,
+        "import matplotlib": 5,
+        "plt.subplots": 5
+    },
+    "ipynb+v4": {
+        "cv2.GaussianBlur": 5,
+        "cv2.solve": 5
+    },
+    "ipynb+v5": {
+        "cv2.HOGDescriptor": 5,
+        "cv2.norm": 5
+    },
+    "ipynb+v6": {
+        "cv2.kmeans": 5,
+        "cv2.cornerHarris": 5
+    },
+    "ipynb+v7": {
+        "cv2.matchTemplate": 5,
+        "cv2.watershed": 5
+    },
+    "ipynb+v8": {
+        "cv2.FlannBasedMatcher": 5,
+        "cv2.HOGDescriptor": 5
+    },
+    "ipynb+v-": {
+        "sklearn": 20
     },
     "ipynb-": {
         "!pip install": 20,
