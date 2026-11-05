@@ -2,7 +2,7 @@
 
 ## 1. Python
 
-opencv pillow pytorch scikit-learn torchvision ultralytics
+opencv pillow scikit-learn torchvision ultralytics
 
 ## 2. VSCode
 
