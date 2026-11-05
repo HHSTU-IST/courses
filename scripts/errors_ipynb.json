@@ -30,32 +30,77 @@
     "ipynb+v": {
         "from skimage": 10,
         "import cv2": 10,
-        "cv2.": 5,
-        "import numpy": 5,
-        "import matplotlib": 5,
-        "plt.subplots": 5,
-        "plt.rcParams": 5,
-        "f\"": 5
+        "plt.subplots": 5
+    },
+    "ipynb+v3": {
+        "cv2.cvtColor": 5,
+        "cv2.split": 5,
+        "cv2.merge": 5,
+        "cv2.addWeighted": 5,
+        "cv2.bitwise_and": 5,
+        "cv2.rectangle": 5,
+        "cv2.circle": 5,
+        "cv2.flip": 5,
+        "cv2.warpAffine": 5
     },
     "ipynb+v4": {
         "cv2.GaussianBlur": 5,
+        "cv2.medianBlur": 5,
+        "cv2.bilateralFilter": 5,
+        "cv2.threshold": 5,
+        "cv2.erode": 5,
+        "cv2.dilate": 5,
+        "cv2.morphologyEx": 5,
+        "cv2.getStructuringElement": 5,
+        "cv2.normalize": 5,
         "cv2.solve": 5
     },
     "ipynb+v5": {
-        "cv2.HOGDescriptor": 5,
-        "cv2.norm": 5
+        "cv2.Sobel": 5,
+        "cv2.Laplacian": 5,
+        "cv2.Canny": 5,
+        "cv2.HoughLines": 5,
+        "cv2.HoughCircles": 5,
+        "cv2.findContours": 5,
+        "cv2.minAreaRect": 5,
+        "cv2.minEnclosingCircle": 5,
+        "cv2.norm": 5,
+        "cv2.HOGDescriptor": 5
     },
     "ipynb+v6": {
+        "cv2.pyrDown": 5,
+        "cv2.cornerHarris": 5,
+        "cv2.goodFeaturesToTrack": 5,
+        "cv2.FastFeatureDetector": 5,
+        "cv2.SimpleBlobDetector": 5,
+        "cv2.SIFT": 5,
         "cv2.kmeans": 5,
-        "cv2.cornerHarris": 5
+        "cv2.PCACompute": 5
     },
     "ipynb+v7": {
+        "cv2.dft": 5,
+        "cv2.idft": 5,
         "cv2.matchTemplate": 5,
-        "cv2.watershed": 5
+        "cv2.minMaxLoc": 5,
+        "cv2.watershed": 5,
+        "cv2.distanceTransform": 5,
+        "cv2.connectedComponents": 5,
+        "cv2.ml.DTrees": 5,
+        "cv2.ml.RTrees": 5
     },
     "ipynb+v8": {
+        "cv2.calcHist": 5,
+        "cv2.equalizeHist": 5,
+        "cv2.createCLAHE": 5,
+        "cv2.arcLength": 5,
+        "cv2.contourArea": 5,
+        "cv2.convexHull": 5,
+        "cv2.approxPolyDP": 5,
         "cv2.FlannBasedMatcher": 5,
-        "cv2.HOGDescriptor": 5
+        "cv2.ORB": 5,
+        "cv2.HOGDescriptor": 5,
+        "np.where": 5,
+        "np.histogram": 5
     },
     "ipynb+v-": {
         "sklearn": 20
