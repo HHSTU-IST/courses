@@ -1,7 +1,0 @@
-# 程序文件 ex15_7.py
-import numpy as np
-
-P1 = np.asmatrix([0.2, 0.4, 0.4])
-P = np.asmatrix([[0.8, 0.1, 0.1], [0.5, 0.1, 0.4], [0.5, 0.3, 0.2]])
-P4 = P1 @ P**3
-print("P4:", P4)
