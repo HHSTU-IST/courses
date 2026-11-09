@@ -243,6 +243,18 @@ def print_table(results: list[Result], show_detail: bool = True) -> None:
     print(f"\n共 {len(results)} 份，平均 {avg} 分，满分 {sum(1 for r in results if r['score'] == INIT_SCORE)} 份")
 
 
+def drop_patterns(rules_map: dict[str, int], tokens: list[str]) -> list[tuple[str, int]]:
+    """仅在本次运行的内存规则集中，删除键名包含任一给定子串的条目，返回被删除的 (模式, 分值) 列表。
+
+    不写回 ``errors_ipynb.json``，因此属于“本次临时豁免”。
+    """
+    removed: list[tuple[str, int]] = []
+    for key in list(rules_map):
+        if any(tok in key for tok in tokens):
+            removed.append((key, rules_map.pop(key)))
+    return removed
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="基于 errors_ipynb.json 批改 ipynb 作业")
     parser.add_argument("target", nargs="?", default="智能B241实验3", help="作业目录，默认 智能B241实验3")
@@ -250,6 +262,20 @@ def main() -> None:
     parser.add_argument("--report", action="store_true", help="写出 reports/summary.json")
     parser.add_argument("--fill", action="store_true", help="分数写入成绩表副本")
     parser.add_argument("--quiet", action="store_true", help="只打印汇总表，不逐份列出缺失项")
+    parser.add_argument(
+        "--ignore-goal",
+        action="append",
+        default=[],
+        metavar="SUBSTR",
+        help="仅本次运行：从 goals 中剔除包含该子串的目标（不修改 errors_ipynb.json）",
+    )
+    parser.add_argument(
+        "--ignore-penalty",
+        action="append",
+        default=[],
+        metavar="SUBSTR",
+        help="仅本次运行：从 penalties 中剔除包含该子串的罚分（不修改 errors_ipynb.json）",
+    )
     args = parser.parse_args()
 
     cfg = load_cfg()
@@ -262,6 +288,13 @@ def main() -> None:
 
     exp = extract_exp(target.name, files)
     rules = resolve_rules(cfg, target.name, exp)
+
+    dropped_g = drop_patterns(rules.goals, args.ignore_goal)
+    dropped_p = drop_patterns(rules.penalties, args.ignore_penalty)
+    for key, pts in dropped_g:
+        print(f"本次豁免目标: '{esc(key)}'（原缺失扣 {pts}）")
+    for key, pts in dropped_p:
+        print(f"本次豁免罚分: '{esc(key)}'（原命中扣 {pts}）")
     print(f"目录: {target}  |  实验号: {exp}  |  课程族: {'CV' if is_cv(target.name) else ('ML' if target.name.startswith(ML_PREFIXES) else '?')}")
     print(f"目标数: {len(rules.goals)}  罚分规则数: {len(rules.penalties)}\n")
 
