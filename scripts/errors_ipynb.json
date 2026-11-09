@@ -32,6 +32,9 @@
         "import cv2": 10,
         "plt.subplots": 5
     },
+    "ipynb+v-md": {
+        "作业要求": 10
+    },
     "ipynb+v3": {
         "cv2.cvtColor": 5,
         "cv2.split": 5,
@@ -43,6 +46,10 @@
         "cv2.flip": 5,
         "cv2.warpAffine": 5
     },
+    "ipynb+v3-exclude": [
+        "from skimage",
+        "\n_"
+    ],
     "ipynb+v4": {
         "cv2.GaussianBlur": 5,
         "cv2.medianBlur": 5,
