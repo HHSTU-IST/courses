@@ -2,18 +2,25 @@
 # -*- coding: utf-8 -*-
 """批改 ipynb 作业：基于 ``scripts/errors_ipynb.json`` 给 notebook 打分。
 
-评分模型（与 ``scripts/grader.ipynb`` 完全一致）：
+评分模型：
 
 * 每份作业满分 ``INIT_SCORE``（默认 100）；
-* 只拼接 **code cell** 源码（含注释；markdown 不计入）；
-* ``penalties``：子串 **出现** 在代码中则扣分（坏味道，如 ``!pip install`` / ``sklearn``）；
-* ``goals``：子串 **缺失** 则扣分（应当出现的 API，如 ``cv2.circle`` / ``plt.subplots``）；
+* ``goals`` / ``penalties`` 只针对 **code cell** 源码（含注释）：
+  - ``penalties``：子串 **出现** 在代码中则扣分（坏味道，如 ``!pip install`` / ``sklearn``）；
+  - ``goals``：子串 **缺失** 则扣分（应当出现的 API，如 ``cv2.circle`` / ``plt.subplots``）；
+* ``md_goals`` 针对 **markdown cell** 源码：子串 **缺失** 则扣分（如删除了开篇“作业要求”说明）；
 * 最终分 ``= max(0, INIT_SCORE - 违规扣分之和)``。
 
 规则表 ``errors_ipynb.json`` 形如 ``{key: {pattern: 分值}}``。按目录名前缀判定课程：
 
 * ``计科*``            → goals=``ipynb+m{exp}``                      penalties=``ipynb-``
 * ``物联网*`` / ``智能*``（CV/OpenCV）→ goals=``ipynb+v`` + ``ipynb+v{exp}``  penalties=``ipynb-`` + ``ipynb+v-``
+
+另有两个可选约定：
+
+* ``<chapter>-md``：markdown 目标；CV 会合并通用 ``ipynb+v-md`` 与本章 ``ipynb+v{exp}-md``；
+* ``<chapter>-exclude``：字符串列表，列出该章要从 goals/penalties 中 **永久剔除** 的模式
+  （如 ``ipynb+v3-exclude = ["from skimage", "\n_"]``，因为基础章用 ``np.zeros`` 造图、且允许用 ``_`` 占位）。
 
 ``exp``（实验号）取自目录名结尾的实验号，例如 ``智能B241实验3`` → ``3``。
 
@@ -58,14 +65,17 @@ class Result(TypedDict):
     score: int
     missing_goals: list[str]
     hit_penalties: list[str]
+    missing_md: list[str]
 
 
 @dataclass
 class RuleSet:
-    """合并后的规则集：目标（缺失扣分）与罚分（出现扣分）。"""
+    """合并后的规则集：目标（缺失扣分）、罚分（出现扣分）、markdown 目标（md 缺失扣分）、本次被排除项。"""
 
     goals: dict[str, int] = field(default_factory=dict)
     penalties: dict[str, int] = field(default_factory=dict)
+    md_goals: dict[str, int] = field(default_factory=dict)
+    excluded: list[str] = field(default_factory=list)
 
 
 def load_cfg(path: Path = RULES_PATH) -> dict:
@@ -95,20 +105,34 @@ def is_cv(folder: str) -> bool:
 
 
 def resolve_rules(cfg: dict, folder: str, exp: int) -> RuleSet:
-    """按课程与前缀合并 base + 分章 goals、base + 专属 penalties；缺失键一律按空处理，避免 None 崩溃。"""
+    """按课程与前缀合并 base + 分章 goals、base + 专属 penalties、以及 markdown 目标；
+    最后套用该章的永久排除列表 ``<chapter>-exclude``。缺失键一律按空处理，避免 None 崩溃。"""
     goals: dict[str, int] = {}
     penalties: dict[str, int] = dict(cfg.get("ipynb-") or {})
+    md_goals: dict[str, int] = {}
 
     if folder.startswith(ML_PREFIXES):
-        goals.update(cfg.get(f"ipynb+m{exp}") or {})
+        chapter_key = f"ipynb+m{exp}"
+        goals.update(cfg.get(chapter_key) or {})
+        md_goals.update(cfg.get(f"{chapter_key}-md") or {})
     elif is_cv(folder):
+        chapter_key = f"ipynb+v{exp}"
         goals.update(cfg.get("ipynb+v") or {})          # CV 通用目标
-        goals.update(cfg.get(f"ipynb+v{exp}") or {})    # 本章专属目标
+        goals.update(cfg.get(chapter_key) or {})        # 本章专属目标
         penalties.update(cfg.get("ipynb+v-") or {})     # CV 专属罚分（禁 sklearn）
+        md_goals.update(cfg.get("ipynb+v-md") or {})    # CV 通用 markdown 目标
+        md_goals.update(cfg.get(f"{chapter_key}-md") or {})  # 本章 markdown 目标
     else:
+        chapter_key = ""
         print(f"⚠ 目录前缀未匹配已知课程（计科/物联网/智能），仅套用通用罚分: {folder}")
 
-    return RuleSet(goals=goals, penalties=penalties)
+    # 永久排除：该章配置 <chapter>-exclude 列出的模式，从 goals/penalties 中剔除
+    excluded: list[str] = []
+    tokens = cfg.get(f"{chapter_key}-exclude") if chapter_key else None
+    if isinstance(tokens, list) and tokens:
+        excluded = [k for k, _ in drop_patterns(goals, tokens)] + [k for k, _ in drop_patterns(penalties, tokens)]
+
+    return RuleSet(goals=goals, penalties=penalties, md_goals=md_goals, excluded=excluded)
 
 
 def code_of(nb: dict) -> str:
@@ -116,6 +140,17 @@ def code_of(nb: dict) -> str:
     parts = []
     for cell in nb.get("cells", []):
         if cell.get("cell_type") != "code":
+            continue
+        src = cell.get("source", [])
+        parts.append("".join(src) if isinstance(src, list) else str(src))
+    return "".join(parts)
+
+
+def md_of(nb: dict) -> str:
+    """仅拼接 markdown cell 源码（用于校验开篇作业要求等说明是否被删除）。"""
+    parts = []
+    for cell in nb.get("cells", []):
+        if cell.get("cell_type") != "markdown":
             continue
         src = cell.get("source", [])
         parts.append("".join(src) if isinstance(src, list) else str(src))
@@ -141,6 +176,7 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
     """批改单个 notebook，返回结构化结果。"""
     nb = json.loads(path.read_text(encoding="utf-8"))
     code = code_of(nb)
+    md = md_of(nb)
 
     violations = 0
     hit_penalties: list[str] = []
@@ -155,6 +191,13 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
             violations += goal
             missing_goals.append(pattern)
 
+    # markdown 目标：开篇作业要求等说明被删除则扣分（针对 markdown cell）
+    missing_md: list[str] = []
+    for pattern, goal in rules.md_goals.items():
+        if pattern not in md:
+            violations += goal
+            missing_md.append(pattern)
+
     score = max(0, init_score - violations)
     _task, sid, name = parse_name(path)
     return Result(
@@ -164,6 +207,7 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
         score=score,
         missing_goals=missing_goals,
         hit_penalties=hit_penalties,
+        missing_md=missing_md,
     )
 
 
@@ -234,10 +278,14 @@ def esc(pattern: str) -> str:
 
 def print_table(results: list[Result], show_detail: bool = True) -> None:
     width = max([len(r["name"] + r["student_id"]) for r in results] + [8])
-    print(f"{'学号-姓名'.ljust(width)}  {'得分':>4}  缺失目标 / 命中罚分")
+    print(f"{'学号-姓名'.ljust(width)}  {'得分':>4}  缺失目标 / 命中罚分 / md缺失")
     print("-" * (width + 50))
     for r in sorted(results, key=lambda x: x["student_id"]):
-        tags = "、".join([esc(p) for p in r["missing_goals"]] + [f"⚠{esc(p)}" for p in r["hit_penalties"]]) or "无"
+        tags = "、".join(
+            [esc(p) for p in r["missing_goals"]]
+            + [f"⚠{esc(p)}" for p in r["hit_penalties"]]
+            + [f"📝{p}" for p in r["missing_md"]]
+        ) or "无"
         print(f"{(r['student_id'] + '-' + r['name']).ljust(width)}  {r['score']:>4}  {tags}")
     avg = round(sum(r["score"] for r in results) / len(results), 2)
     print(f"\n共 {len(results)} 份，平均 {avg} 分，满分 {sum(1 for r in results if r['score'] == INIT_SCORE)} 份")
@@ -297,7 +345,9 @@ def main() -> None:
     for key, pts in dropped_p:
         print(f"本次豁免罚分: '{esc(key)}'（原命中扣 {pts}）")
     print(f"目录: {target}  |  实验号: {exp}  |  课程族: {'CV' if is_cv(target.name) else ('ML' if target.name.startswith(ML_PREFIXES) else '?')}")
-    print(f"目标数: {len(rules.goals)}  罚分规则数: {len(rules.penalties)}\n")
+    if rules.excluded:
+        print(f"本章永久排除: {'、'.join(repr(esc(k)) for k in rules.excluded)}")
+    print(f"目标数: {len(rules.goals)}  罚分规则数: {len(rules.penalties)}  markdown目标数: {len(rules.md_goals)}\n")
 
     results = [grade_file(p, rules) for p in files]
 
@@ -319,6 +369,8 @@ def main() -> None:
             "exp": exp,
             "course": "CV" if is_cv(target.name) else "ML",
             "init_score": INIT_SCORE,
+            "md_goals": rules.md_goals,
+            "excluded": rules.excluded,
             "count": len(results),
             "average": round(sum(r["score"] for r in results) / len(results), 2),
             "files": results,
