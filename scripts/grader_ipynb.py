@@ -35,8 +35,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypedDict
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+_reconfigure = getattr(sys.stdout, "reconfigure", None)
+if callable(_reconfigure):
+    _reconfigure(encoding="utf-8", errors="replace")
 
 INIT_SCORE = 100
 RULES_PATH = Path(__file__).with_name("errors_ipynb.json")
@@ -196,7 +197,8 @@ def fill_scores(results: list[Result], folder: str, exp: int, repo_root: Path, o
         raise SystemExit(f"成绩表中无工作表 {sheet_name!r}，现有: {wb.sheetnames}")
     ws = wb[sheet_name]
 
-    header_row = score_col = id_col = None
+    header_row = 0
+    score_col = id_col = None
     for r in range(1, min(ws.max_row, 12) + 1):
         for c in range(1, ws.max_column + 1):
             v = ws.cell(r, c).value
@@ -267,7 +269,7 @@ def main() -> None:
 
     if args.apply:
         for p, r in zip(files, results):
-            r["renamed"] = rename_by_score(p, r["score"]).name  # type: ignore[typeddict-item]
+            rename_by_score(p, r["score"])
         print("已按分数重命名 notebook。\n")
     else:
         print("（预演模式，未改名；加 --apply 才会重命名）\n")
