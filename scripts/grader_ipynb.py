@@ -9,6 +9,7 @@
   - ``penalties``：子串 **出现** 在代码中则扣分（坏味道，如 ``!pip install`` / ``sklearn``）；
   - ``goals``：子串 **缺失** 则扣分（应当出现的 API，如 ``cv2.circle`` / ``plt.subplots``）；
 * ``md_goals`` 针对 **markdown cell** 源码：子串 **缺失** 则扣分（如删除了开篇“作业要求”说明）；
+* ``ast_checks`` 针对 **code cell 的语法树** 做语义判定（子串匹配抓不住的用法），命中违规则扣分；
 * 最终分 ``= max(0, INIT_SCORE - 违规扣分之和)``。
 
 规则表 ``errors_ipynb.json`` 形如 ``{key: {pattern: 分值}}``。按目录名前缀判定课程：
@@ -20,7 +21,9 @@
 
 * ``<chapter>-md``：markdown 目标；CV 会合并通用 ``ipynb+v-md`` 与本章 ``ipynb+v{exp}-md``；
 * ``<chapter>-exclude``：字符串列表，列出该章要从 goals/penalties 中 **永久剔除** 的模式
-  （如 ``ipynb+v3-exclude = ["from skimage", "\n_"]``，因为基础章用 ``np.zeros`` 造图、且允许用 ``_`` 占位）。
+  （如 ``ipynb+v3-exclude = ["from skimage", "\n_"]``，因为基础章用 ``np.zeros`` 造图、且允许用 ``_`` 占位）；
+* ``<chapter>-ast``：``{检查名: 分值}``，登记该章要跑的 **AST 语义检查**（检查名须在 ``AST_CHECKS`` 注册表内实现），
+  例如 ``ipynb+v3-ast = {"affine_points_nparray": 5}``——对 ``cv2.getAffineTransform`` 点对没用 ``np.array`` 构造的扣 5 分。
 
 ``exp``（实验号）取自目录名结尾的实验号，例如 ``智能B241实验3`` → ``3``。
 
@@ -35,12 +38,13 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TypedDict
+from typing import Callable, TypedDict
 
 _reconfigure = getattr(sys.stdout, "reconfigure", None)
 if callable(_reconfigure):
@@ -66,15 +70,17 @@ class Result(TypedDict):
     missing_goals: list[str]
     hit_penalties: list[str]
     missing_md: list[str]
+    ast_hits: list[str]
 
 
 @dataclass
 class RuleSet:
-    """合并后的规则集：目标（缺失扣分）、罚分（出现扣分）、markdown 目标（md 缺失扣分）、本次被排除项。"""
+    """合并后的规则集：目标（缺失扣分）、罚分（出现扣分）、markdown 目标（md 缺失扣分）、AST 语义检查、本次被排除项。"""
 
     goals: dict[str, int] = field(default_factory=dict)
     penalties: dict[str, int] = field(default_factory=dict)
     md_goals: dict[str, int] = field(default_factory=dict)
+    ast_checks: dict[str, int] = field(default_factory=dict)
     excluded: list[str] = field(default_factory=list)
 
 
@@ -110,11 +116,13 @@ def resolve_rules(cfg: dict, folder: str, exp: int) -> RuleSet:
     goals: dict[str, int] = {}
     penalties: dict[str, int] = dict(cfg.get("ipynb-") or {})
     md_goals: dict[str, int] = {}
+    ast_checks: dict[str, int] = {}
 
     if folder.startswith(ML_PREFIXES):
         chapter_key = f"ipynb+m{exp}"
         goals.update(cfg.get(chapter_key) or {})
         md_goals.update(cfg.get(f"{chapter_key}-md") or {})
+        ast_checks.update(cfg.get(f"{chapter_key}-ast") or {})
     elif is_cv(folder):
         chapter_key = f"ipynb+v{exp}"
         goals.update(cfg.get("ipynb+v") or {})          # CV 通用目标
@@ -122,6 +130,8 @@ def resolve_rules(cfg: dict, folder: str, exp: int) -> RuleSet:
         penalties.update(cfg.get("ipynb+v-") or {})     # CV 专属罚分（禁 sklearn）
         md_goals.update(cfg.get("ipynb+v-md") or {})    # CV 通用 markdown 目标
         md_goals.update(cfg.get(f"{chapter_key}-md") or {})  # 本章 markdown 目标
+        ast_checks.update(cfg.get("ipynb+v-ast") or {})      # CV 通用 AST 检查
+        ast_checks.update(cfg.get(f"{chapter_key}-ast") or {})  # 本章 AST 检查
     else:
         chapter_key = ""
         print(f"⚠ 目录前缀未匹配已知课程（计科/物联网/智能），仅套用通用罚分: {folder}")
@@ -132,7 +142,7 @@ def resolve_rules(cfg: dict, folder: str, exp: int) -> RuleSet:
     if isinstance(tokens, list) and tokens:
         excluded = [k for k, _ in drop_patterns(goals, tokens)] + [k for k, _ in drop_patterns(penalties, tokens)]
 
-    return RuleSet(goals=goals, penalties=penalties, md_goals=md_goals, excluded=excluded)
+    return RuleSet(goals=goals, penalties=penalties, md_goals=md_goals, ast_checks=ast_checks, excluded=excluded)
 
 
 def code_of(nb: dict) -> str:
@@ -155,6 +165,72 @@ def md_of(nb: dict) -> str:
         src = cell.get("source", [])
         parts.append("".join(src) if isinstance(src, list) else str(src))
     return "".join(parts)
+
+
+def _affine_code_for_ast(nb: dict) -> str:
+    """拼接 code cell，逐个以换行分隔，避免相邻单元格的行粘连，便于 ast 解析。"""
+    blocks = []
+    for cell in nb.get("cells", []):
+        if cell.get("cell_type") != "code":
+            continue
+        src = cell.get("source", [])
+        blocks.append("".join(src) if isinstance(src, list) else str(src))
+    return "\n".join(blocks)
+
+
+def affine_points_nparray(nb: dict) -> bool:
+    """AST 语义检查：``cv2.getAffineTransform`` 的两个点对参数是否都用 ``np.array(...)`` 构造。
+
+    违规返回 ``True``——例如用 ``np.float32([[...]])`` 直接当点对：静态类型上它是标量
+    ``floating[_32Bit]``，不匹配 OpenCV 的 ``MatLike`` 重载（ty 会报 No overload matches）。
+    没有 ``getAffineTransform`` 调用，或点对确实经 ``np.array``（含赋值给变量后再传入）构造，
+    则返回 ``False``（不扣分）。
+    """
+    code = _affine_code_for_ast(nb)
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return False
+
+    # name -> 赋值右侧源码片段（同名多次全部保留，命中任一 np.array 即视为合规）
+    assigns: dict[str, list[str]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            seg = ast.get_source_segment(code, node.value) or ""
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name):
+                    assigns.setdefault(tgt.id, []).append(seg)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+            seg = ast.get_source_segment(code, node.value) or ""
+            assigns.setdefault(node.target.id, []).append(seg)
+
+    def resolves_to_array(arg: ast.expr) -> bool:
+        """把参数（内联表达式或变量名）解析到构造源码，判断是否经 np.array。"""
+        src = ast.get_source_segment(code, arg) or ""
+        if "np.array" in src:
+            return True
+        if isinstance(arg, ast.Name):
+            return any("np.array" in s for s in assigns.get(arg.id, []))
+        return False
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        fname = func.attr if isinstance(func, ast.Attribute) else (func.id if isinstance(func, ast.Name) else "")
+        if fname != "getAffineTransform":
+            continue
+        # srcPts / dstPts：前两个位置参数 + 关键字 src/dst/srcPts/dstPts
+        point_args: list[ast.expr] = list(node.args[:2])
+        point_args += [kw.value for kw in node.keywords if kw.arg in ("src", "dst", "srcPts", "dstPts")]
+        if any(not resolves_to_array(arg) for arg in point_args):
+            return True
+    return False
+
+
+AST_CHECKS: dict[str, Callable[[dict], bool]] = {
+    "affine_points_nparray": affine_points_nparray,
+}
 
 
 def parse_name(path: Path) -> tuple[str, str, str]:
@@ -198,6 +274,14 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
             violations += goal
             missing_md.append(pattern)
 
+    # AST 语义检查：命中违规（返回 True）才扣分
+    ast_hits: list[str] = []
+    for check, pts in rules.ast_checks.items():
+        checker = AST_CHECKS.get(check)
+        if checker is not None and checker(nb):
+            violations += pts
+            ast_hits.append(check)
+
     score = max(0, init_score - violations)
     _task, sid, name = parse_name(path)
     return Result(
@@ -208,6 +292,7 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
         missing_goals=missing_goals,
         hit_penalties=hit_penalties,
         missing_md=missing_md,
+        ast_hits=ast_hits,
     )
 
 
@@ -278,13 +363,14 @@ def esc(pattern: str) -> str:
 
 def print_table(results: list[Result], show_detail: bool = True) -> None:
     width = max([len(r["name"] + r["student_id"]) for r in results] + [8])
-    print(f"{'学号-姓名'.ljust(width)}  {'得分':>4}  缺失目标 / 命中罚分 / md缺失")
+    print(f"{'学号-姓名'.ljust(width)}  {'得分':>4}  缺失目标 / 命中罚分 / md缺失 / AST")
     print("-" * (width + 50))
     for r in sorted(results, key=lambda x: x["student_id"]):
         tags = "、".join(
             [esc(p) for p in r["missing_goals"]]
             + [f"⚠{esc(p)}" for p in r["hit_penalties"]]
             + [f"📝{p}" for p in r["missing_md"]]
+            + [f"🌳{p}" for p in r["ast_hits"]]
         ) or "无"
         print(f"{(r['student_id'] + '-' + r['name']).ljust(width)}  {r['score']:>4}  {tags}")
     avg = round(sum(r["score"] for r in results) / len(results), 2)
@@ -347,7 +433,7 @@ def main() -> None:
     print(f"目录: {target}  |  实验号: {exp}  |  课程族: {'CV' if is_cv(target.name) else ('ML' if target.name.startswith(ML_PREFIXES) else '?')}")
     if rules.excluded:
         print(f"本章永久排除: {'、'.join(repr(esc(k)) for k in rules.excluded)}")
-    print(f"目标数: {len(rules.goals)}  罚分规则数: {len(rules.penalties)}  markdown目标数: {len(rules.md_goals)}\n")
+    print(f"目标数: {len(rules.goals)}  罚分规则数: {len(rules.penalties)}  markdown目标数: {len(rules.md_goals)}  AST检查数: {len(rules.ast_checks)}\n")
 
     results = [grade_file(p, rules) for p in files]
 
@@ -370,6 +456,7 @@ def main() -> None:
             "course": "CV" if is_cv(target.name) else "ML",
             "init_score": INIT_SCORE,
             "md_goals": rules.md_goals,
+            "ast_checks": rules.ast_checks,
             "excluded": rules.excluded,
             "count": len(results),
             "average": round(sum(r["score"] for r in results) / len(results), 2),
