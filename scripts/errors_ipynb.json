@@ -44,8 +44,10 @@
         "cv2.rectangle": 5,
         "cv2.circle": 5,
         "cv2.flip": 5,
-        "cv2.warpAffine": 5,
-        "np.array([": 5
+        "cv2.warpAffine": 5
+    },
+    "ipynb+v3-ast": {
+        "affine_points_nparray": 5
     },
     "ipynb+v3-exclude": [
         "from skimage",
