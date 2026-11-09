@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """批改 ipynb 作业：基于 ``scripts/errors_ipynb.json`` 给 notebook 打分。
 
 评分模型：
@@ -42,9 +41,10 @@ import ast
 import json
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, TypedDict
+from typing import TypedDict
 
 _reconfigure = getattr(sys.stdout, "reconfigure", None)
 if callable(_reconfigure):
@@ -57,7 +57,11 @@ RULES_PATH = Path(__file__).with_name("errors_ipynb.json")
 ML_PREFIXES = ("计科",)
 CV_PREFIXES = ("物联网", "智能")
 # 课程前缀 -> 成绩表文件名（供 --fill 使用）
-SCORE_FILE_BY_PREFIX = {"计科": "2026-ml-成绩.xlsx", "物联网": "2026-cv-成绩.xlsx", "智能": "2026-cv-成绩.xlsx"}
+SCORE_FILE_BY_PREFIX = {
+    "计科": "2026-ml-成绩.xlsx",
+    "物联网": "2026-cv-成绩.xlsx",
+    "智能": "2026-cv-成绩.xlsx",
+}
 
 
 class Result(TypedDict):
@@ -125,12 +129,12 @@ def resolve_rules(cfg: dict, folder: str, exp: int) -> RuleSet:
         ast_checks.update(cfg.get(f"{chapter_key}-ast") or {})
     elif is_cv(folder):
         chapter_key = f"ipynb+v{exp}"
-        goals.update(cfg.get("ipynb+v") or {})          # CV 通用目标
-        goals.update(cfg.get(chapter_key) or {})        # 本章专属目标
-        penalties.update(cfg.get("ipynb+v-") or {})     # CV 专属罚分（禁 sklearn）
-        md_goals.update(cfg.get("ipynb+v-md") or {})    # CV 通用 markdown 目标
+        goals.update(cfg.get("ipynb+v") or {})  # CV 通用目标
+        goals.update(cfg.get(chapter_key) or {})  # 本章专属目标
+        penalties.update(cfg.get("ipynb+v-") or {})  # CV 专属罚分（禁 sklearn）
+        md_goals.update(cfg.get("ipynb+v-md") or {})  # CV 通用 markdown 目标
         md_goals.update(cfg.get(f"{chapter_key}-md") or {})  # 本章 markdown 目标
-        ast_checks.update(cfg.get("ipynb+v-ast") or {})      # CV 通用 AST 检查
+        ast_checks.update(cfg.get("ipynb+v-ast") or {})  # CV 通用 AST 检查
         ast_checks.update(cfg.get(f"{chapter_key}-ast") or {})  # 本章 AST 检查
     else:
         chapter_key = ""
@@ -140,9 +144,17 @@ def resolve_rules(cfg: dict, folder: str, exp: int) -> RuleSet:
     excluded: list[str] = []
     tokens = cfg.get(f"{chapter_key}-exclude") if chapter_key else None
     if isinstance(tokens, list) and tokens:
-        excluded = [k for k, _ in drop_patterns(goals, tokens)] + [k for k, _ in drop_patterns(penalties, tokens)]
+        excluded = [k for k, _ in drop_patterns(goals, tokens)] + [
+            k for k, _ in drop_patterns(penalties, tokens)
+        ]
 
-    return RuleSet(goals=goals, penalties=penalties, md_goals=md_goals, ast_checks=ast_checks, excluded=excluded)
+    return RuleSet(
+        goals=goals,
+        penalties=penalties,
+        md_goals=md_goals,
+        ast_checks=ast_checks,
+        excluded=excluded,
+    )
 
 
 def code_of(nb: dict) -> str:
@@ -200,7 +212,11 @@ def affine_points_nparray(nb: dict) -> bool:
             for tgt in node.targets:
                 if isinstance(tgt, ast.Name):
                     assigns.setdefault(tgt.id, []).append(seg)
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.value is not None
+        ):
             seg = ast.get_source_segment(code, node.value) or ""
             assigns.setdefault(node.target.id, []).append(seg)
 
@@ -217,12 +233,20 @@ def affine_points_nparray(nb: dict) -> bool:
         if not isinstance(node, ast.Call):
             continue
         func = node.func
-        fname = func.attr if isinstance(func, ast.Attribute) else (func.id if isinstance(func, ast.Name) else "")
+        fname = (
+            func.attr
+            if isinstance(func, ast.Attribute)
+            else (func.id if isinstance(func, ast.Name) else "")
+        )
         if fname != "getAffineTransform":
             continue
         # srcPts / dstPts：前两个位置参数 + 关键字 src/dst/srcPts/dstPts
         point_args: list[ast.expr] = list(node.args[:2])
-        point_args += [kw.value for kw in node.keywords if kw.arg in ("src", "dst", "srcPts", "dstPts")]
+        point_args += [
+            kw.value
+            for kw in node.keywords
+            if kw.arg in ("src", "dst", "srcPts", "dstPts")
+        ]
         if any(not resolves_to_array(arg) for arg in point_args):
             return True
     return False
@@ -307,7 +331,9 @@ def rename_by_score(path: Path, score: int) -> Path:
     return target
 
 
-def fill_scores(results: list[Result], folder: str, exp: int, repo_root: Path, out_dir: Path) -> Path:
+def fill_scores(
+    results: list[Result], folder: str, exp: int, repo_root: Path, out_dir: Path
+) -> Path:
     """把分数写入成绩表 **副本**（原表不动）。定位表头中含 ``作业{exp}`` 的列、含 ``学号`` 的列。"""
     prefix = next((p for p in SCORE_FILE_BY_PREFIX if folder.startswith(p)), None)
     if prefix is None:
@@ -352,7 +378,9 @@ def fill_scores(results: list[Result], folder: str, exp: int, repo_root: Path, o
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{sheet_name}-作业{exp}-已填分.xlsx"
     wb.save(out_path)
-    print(f"已填 {filled}/{len(by_id)} 名到副本: {out_path}（列 '作业{exp}'，原表未改动）")
+    print(
+        f"已填 {filled}/{len(by_id)} 名到副本: {out_path}（列 '作业{exp}'，原表未改动）"
+    )
     return out_path
 
 
@@ -363,21 +391,32 @@ def esc(pattern: str) -> str:
 
 def print_table(results: list[Result], show_detail: bool = True) -> None:
     width = max([len(r["name"] + r["student_id"]) for r in results] + [8])
-    print(f"{'学号-姓名'.ljust(width)}  {'得分':>4}  缺失目标 / 命中罚分 / md缺失 / AST")
+    print(
+        f"{'学号-姓名'.ljust(width)}  {'得分':>4}  缺失目标 / 命中罚分 / md缺失 / AST"
+    )
     print("-" * (width + 50))
     for r in sorted(results, key=lambda x: x["student_id"]):
-        tags = "、".join(
-            [esc(p) for p in r["missing_goals"]]
-            + [f"⚠{esc(p)}" for p in r["hit_penalties"]]
-            + [f"📝{p}" for p in r["missing_md"]]
-            + [f"🌳{p}" for p in r["ast_hits"]]
-        ) or "无"
-        print(f"{(r['student_id'] + '-' + r['name']).ljust(width)}  {r['score']:>4}  {tags}")
+        tags = (
+            "、".join(
+                [esc(p) for p in r["missing_goals"]]
+                + [f"⚠{esc(p)}" for p in r["hit_penalties"]]
+                + [f"📝{p}" for p in r["missing_md"]]
+                + [f"🌳{p}" for p in r["ast_hits"]]
+            )
+            or "无"
+        )
+        print(
+            f"{(r['student_id'] + '-' + r['name']).ljust(width)}  {r['score']:>4}  {tags}"
+        )
     avg = round(sum(r["score"] for r in results) / len(results), 2)
-    print(f"\n共 {len(results)} 份，平均 {avg} 分，满分 {sum(1 for r in results if r['score'] == INIT_SCORE)} 份")
+    print(
+        f"\n共 {len(results)} 份，平均 {avg} 分，满分 {sum(1 for r in results if r['score'] == INIT_SCORE)} 份"
+    )
 
 
-def drop_patterns(rules_map: dict[str, int], tokens: list[str]) -> list[tuple[str, int]]:
+def drop_patterns(
+    rules_map: dict[str, int], tokens: list[str]
+) -> list[tuple[str, int]]:
     """仅在本次运行的内存规则集中，删除键名包含任一给定子串的条目，返回被删除的 (模式, 分值) 列表。
 
     不写回 ``errors_ipynb.json``，因此属于“本次临时豁免”。
@@ -391,12 +430,25 @@ def drop_patterns(rules_map: dict[str, int], tokens: list[str]) -> list[tuple[st
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="基于 errors_ipynb.json 批改 ipynb 作业")
-    parser.add_argument("target", nargs="?", default="智能B241实验3", help="作业目录，默认 智能B241实验3")
-    parser.add_argument("--apply", action="store_true", help="按分数重命名 notebook（默认只预演不改名）")
-    parser.add_argument("--report", action="store_true", help="写出 reports/summary.json")
+    parser = argparse.ArgumentParser(
+        description="基于 errors_ipynb.json 批改 ipynb 作业"
+    )
+    parser.add_argument(
+        "target",
+        nargs="?",
+        default="智能B241实验3",
+        help="作业目录，默认 智能B241实验3",
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="按分数重命名 notebook（默认只预演不改名）"
+    )
+    parser.add_argument(
+        "--report", action="store_true", help="写出 reports/summary.json"
+    )
     parser.add_argument("--fill", action="store_true", help="分数写入成绩表副本")
-    parser.add_argument("--quiet", action="store_true", help="只打印汇总表，不逐份列出缺失项")
+    parser.add_argument(
+        "--quiet", action="store_true", help="只打印汇总表，不逐份列出缺失项"
+    )
     parser.add_argument(
         "--ignore-goal",
         action="append",
@@ -430,10 +482,14 @@ def main() -> None:
         print(f"本次豁免目标: '{esc(key)}'（原缺失扣 {pts}）")
     for key, pts in dropped_p:
         print(f"本次豁免罚分: '{esc(key)}'（原命中扣 {pts}）")
-    print(f"目录: {target}  |  实验号: {exp}  |  课程族: {'CV' if is_cv(target.name) else ('ML' if target.name.startswith(ML_PREFIXES) else '?')}")
+    print(
+        f"目录: {target}  |  实验号: {exp}  |  课程族: {'CV' if is_cv(target.name) else ('ML' if target.name.startswith(ML_PREFIXES) else '?')}"
+    )
     if rules.excluded:
         print(f"本章永久排除: {'、'.join(repr(esc(k)) for k in rules.excluded)}")
-    print(f"目标数: {len(rules.goals)}  罚分规则数: {len(rules.penalties)}  markdown目标数: {len(rules.md_goals)}  AST检查数: {len(rules.ast_checks)}\n")
+    print(
+        f"目标数: {len(rules.goals)}  罚分规则数: {len(rules.penalties)}  markdown目标数: {len(rules.md_goals)}  AST检查数: {len(rules.ast_checks)}\n"
+    )
 
     results = [grade_file(p, rules) for p in files]
 
