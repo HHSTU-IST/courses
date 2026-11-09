@@ -250,7 +250,8 @@ def drop_patterns(rules_map: dict[str, int], tokens: list[str]) -> list[tuple[st
     """
     removed: list[tuple[str, int]] = []
     for key in list(rules_map):
-        if any(tok in key for tok in tokens):
+        shown = esc(key)
+        if any(tok in key or tok in shown for tok in tokens):
             removed.append((key, rules_map.pop(key)))
     return removed
 
