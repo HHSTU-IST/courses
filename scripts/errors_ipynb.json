@@ -53,6 +53,9 @@
         "from skimage",
         "\n_"
     ],
+    "ipynb+v4-exclude": [
+        "\n_"
+    ],
     "ipynb+v4": {
         "cv2.GaussianBlur": 5,
         "cv2.medianBlur": 5,

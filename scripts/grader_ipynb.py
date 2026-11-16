@@ -98,11 +98,43 @@ def load_cfg(path: Path = RULES_PATH) -> dict:
     return data
 
 
+_CN_DIGITS = {
+    "一": 1,
+    "二": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+    "十": 10,
+}
+
+
+def cn_to_int(text: str) -> int | None:
+    """把「四」「十二」「二十一」这类中文数字转成整数；无法解析（含 0/非中文）返回 None。"""
+    if not text or any(ch not in _CN_DIGITS for ch in text):
+        return None
+    if "十" not in text:
+        return _CN_DIGITS[text] if len(text) == 1 else None
+    head, _, tail = text.partition("十")
+    tens = _CN_DIGITS[head] if head else 1
+    ones = _CN_DIGITS[tail] if tail else 0
+    return tens * 10 + ones
+
+
 def extract_exp(folder: str, files: list[Path]) -> int:
-    """解析实验号：优先目录名（实验3 / 结尾数字），退化到 notebook 文件名前缀（03-...）。"""
+    """解析实验号：优先目录名（实验3 / 第四次实验 / 结尾数字），退化到 notebook 文件名前缀（03-...）。"""
     m = re.search(r"实验\s*(\d+)", folder) or re.search(r"(\d+)\s*$", folder)
     if m:
         return int(m.group(1))
+    # 「第四次实验」这类中文序数
+    m_cn = re.search(r"第\s*([一二三四五六七八九十]+)\s*次", folder)
+    if m_cn:
+        num = cn_to_int(m_cn.group(1))
+        if num:
+            return num
     for p in files:
         m2 = re.match(r"(\d+)", p.name)
         if m2:
@@ -110,8 +142,13 @@ def extract_exp(folder: str, files: list[Path]) -> int:
     raise SystemExit(f"无法从目录名或文件名解析实验号: {folder}")
 
 
+def is_ml(folder: str) -> bool:
+    """课程族判定用「包含」而非「开头」：目录可能形如 ``24智能1班-图像处理与识别第四次实验``。"""
+    return any(p in folder for p in ML_PREFIXES)
+
+
 def is_cv(folder: str) -> bool:
-    return folder.startswith(CV_PREFIXES)
+    return any(p in folder for p in CV_PREFIXES)
 
 
 def resolve_rules(cfg: dict, folder: str, exp: int) -> RuleSet:
@@ -122,7 +159,7 @@ def resolve_rules(cfg: dict, folder: str, exp: int) -> RuleSet:
     md_goals: dict[str, int] = {}
     ast_checks: dict[str, int] = {}
 
-    if folder.startswith(ML_PREFIXES):
+    if is_ml(folder):
         chapter_key = f"ipynb+m{exp}"
         goals.update(cfg.get(chapter_key) or {})
         md_goals.update(cfg.get(f"{chapter_key}-md") or {})
@@ -258,10 +295,22 @@ AST_CHECKS: dict[str, Callable[[dict], bool]] = {
 
 
 def parse_name(path: Path) -> tuple[str, str, str]:
-    """文件名形如 ``03-2401143005-杨佳雪.ipynb`` → (实验号, 学号, 姓名)；容错缺列。"""
+    """文件名形如 ``03-2401143005-杨佳雪.ipynb`` → (实验号, 学号, 姓名)。
+
+    容错两种缺列：``04-2401143008蒋世杰``（学号与姓名之间漏了分隔符，按数字/非数字边界切）、
+    ``04-2401143005``（缺姓名）。
+    """
     stem = strip_score_suffix(path.stem)
     items = stem.split("-")
     task = items[0] if len(items) >= 1 else ""
+    if len(items) >= 2 and re.fullmatch(r"\d+", items[1]):
+        sid = items[1]
+        name = items[2] if len(items) >= 3 else ""
+        return task, sid, name
+    if len(items) >= 2:
+        m = re.match(r"(\d+)(\D.*)?$", items[1])
+        if m:
+            return task, m.group(1), (m.group(2) or "").strip()
     sid = items[1] if len(items) >= 2 else ""
     name = items[2] if len(items) >= 3 else (items[-1] if len(items) >= 2 else "")
     return task, sid, name
@@ -332,12 +381,20 @@ def rename_by_score(path: Path, score: int) -> Path:
 
 
 def fill_scores(
-    results: list[Result], folder: str, exp: int, repo_root: Path, out_dir: Path
+    results: list[Result],
+    folder: str,
+    exp: int,
+    repo_root: Path,
+    out_dir: Path,
+    sheet: str | None = None,
 ) -> Path:
-    """把分数写入成绩表 **副本**（原表不动）。定位表头中含 ``作业{exp}`` 的列、含 ``学号`` 的列。"""
-    prefix = next((p for p in SCORE_FILE_BY_PREFIX if folder.startswith(p)), None)
+    """把分数写入成绩表 **副本**（原表不动）。定位表头中含 ``作业{exp}`` 的列、含 ``学号`` 的列。
+
+    ``sheet`` 显式指定工作表名；否则去掉目录名末尾的「实验N / 第N次实验」再匹配。
+    """
+    prefix = next((p for p in SCORE_FILE_BY_PREFIX if p in folder), None)
     if prefix is None:
-        raise SystemExit(f"目录前缀无法确定成绩表: {folder}")
+        raise SystemExit(f"目录名无法确定成绩表: {folder}")
     src = repo_root / SCORE_FILE_BY_PREFIX[prefix]
     if not src.exists():
         raise SystemExit(f"找不到成绩表: {src}")
@@ -346,7 +403,9 @@ def fill_scores(
     except ImportError:
         raise SystemExit("需要 openpyxl 才能 --fill：pip install openpyxl")
 
-    sheet_name = re.sub(r"实验\s*\d+\s*$", "", folder)
+    sheet_name = sheet or re.sub(
+        r"(第\s*[一二三四五六七八九十\d]+\s*次)?\s*实验\s*\d*\s*$", "", folder
+    )
     wb = openpyxl.load_workbook(src)
     if sheet_name not in wb.sheetnames:
         raise SystemExit(f"成绩表中无工作表 {sheet_name!r}，现有: {wb.sheetnames}")
@@ -447,6 +506,10 @@ def main() -> None:
     )
     parser.add_argument("--fill", action="store_true", help="分数写入成绩表副本")
     parser.add_argument(
+        "--sheet",
+        help="--fill 时显式指定工作表名（目录名无法推出，如 24智能1班-... → 智能B241）",
+    )
+    parser.add_argument(
         "--quiet", action="store_true", help="只打印汇总表，不逐份列出缺失项"
     )
     parser.add_argument(
@@ -524,7 +587,7 @@ def main() -> None:
         print(f"\n报告: {reports_dir / 'summary.json'}")
 
     if args.fill:
-        fill_scores(results, target.name, exp, repo_root, reports_dir)
+        fill_scores(results, target.name, exp, repo_root, reports_dir, args.sheet)
 
 
 if __name__ == "__main__":
