@@ -32,15 +32,27 @@
     python scripts/grader_ipynb.py 智能B241实验3 --apply      # 按分数重命名为 {..}-{score}.ipynb
     python scripts/grader_ipynb.py 智能B241实验3 --report     # 额外写出 reports/summary.json
     python scripts/grader_ipynb.py 智能B241实验3 --fill       # 分数写入成绩表副本（不动原表）
+    python scripts/grader_ipynb.py 智能B241实验3 --apply --clear-outputs   # 收尾清空 notebook 输出
+
+执行顺序（``--clear-outputs`` 恒在最后）::
+
+    批改 → 重复检测归零 → 改名 → 成绩表 → 清空输出
+
+重复检测（默认开启）：md5 完全相同的作业只保留**修改时间最早**的一份得分，其余记 0，
+可用 ``--no-dedup`` 关闭。注意清空输出会用 nbconvert 重写文件、把所有 mtime 刷成同一时刻，
+**之后重跑无法复原提交先后**（会退化成「按文件名取第一份」并告警）；
+需要追溯上一轮判定时看 ``reports/<目录>/summary.prev.json`` 的 ``duplicates`` 字段。
 """
 
 from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import re
 import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -75,6 +87,9 @@ class Result(TypedDict):
     hit_penalties: list[str]
     missing_md: list[str]
     ast_hits: list[str]
+    md5: str
+    duplicate_of: str
+    """若非空，说明该文件与 ``duplicate_of`` 字节级相同，且不是最早提交的那份（得分已置 0）。"""
 
 
 @dataclass
@@ -366,7 +381,51 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
         hit_penalties=hit_penalties,
         missing_md=missing_md,
         ast_hits=ast_hits,
+        md5=file_md5(path),
+        duplicate_of="",
     )
+
+
+def file_md5(path: Path) -> str:
+    """按字节计算 md5，用于识别同一份文件的多次提交（分块读取，避免大 notebook 吃内存）。"""
+    h = hashlib.md5()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def apply_duplicate_policy(results: list[Result], files: list[Path]) -> list[dict]:
+    """按 md5 分组：内容完全相同的作业里，只保留修改时间最早的一份得分，其余全部记 0。
+
+    返回重复组（供打印与报告），每组形如
+    ``{"md5": ..., "kept": 文件名, "zeroed": [文件名, ...], "tie": bool}``。
+
+    ``tie=True`` 表示最早的两份修改时间相同（秒级），此时「最早」不可判定，
+    仅按文件名排序取第一份，并在调用方给出警告。
+    """
+    mtimes = {p.name: p.stat().st_mtime for p in files}
+    groups: dict[str, list[Result]] = {}
+    for r in results:
+        groups.setdefault(r["md5"], []).append(r)
+
+    report: list[dict] = []
+    for digest, members in groups.items():
+        if len(members) < 2:
+            continue
+        # 先按修改时间、再按文件名排序；文件名兜底只为让结果确定，不代表提交先后
+        members.sort(key=lambda r: (mtimes.get(r["file"], 0.0), r["file"]))
+        keeper = members[0]
+        tie = len(members) > 1 and mtimes.get(members[1]["file"]) == mtimes.get(keeper["file"])
+        zeroed: list[str] = []
+        for r in members[1:]:
+            r["score"] = 0
+            r["duplicate_of"] = keeper["file"]
+            zeroed.append(r["file"])
+        report.append(
+            {"md5": digest, "kept": keeper["file"], "zeroed": zeroed, "tie": tie}
+        )
+    return report
 
 
 def rename_by_score(path: Path, score: int) -> Path:
@@ -448,6 +507,70 @@ def esc(pattern: str) -> str:
     return pattern.replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r")
 
 
+def clear_outputs(root: Path, *, backup_zip: bool = True, batch_size: int = 20) -> bool:
+    """收尾步骤：调用 ``grader_clear_outputs`` 的同一套实现清空 notebook 输出。
+
+    复用而非复制逻辑，保证两条命令的行为一致。``--apply`` 改过名，所以文件列表
+    在这里重新收集，不沿用批改时的路径。返回是否全部成功。
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        import grader_clear_outputs as gco
+    except ImportError as exc:  # 同名模块缺失时不应中断已经完成的批改
+        print(f"⚠ 无法导入 grader_clear_outputs，跳过清理: {exc}", file=sys.stderr)
+        return False
+
+    files = gco.collect(root, False)
+    if not files:
+        print("清理: 目录内没有 ipynb，跳过")
+        return True
+
+    print()
+    gco.show("清理前", gco.scan(files))
+    base_cmd = gco.resolve_jupyter(None)
+    if backup_zip:
+        print(f"备份已生成: {gco.backup(root, files)}")
+
+    failed: list[tuple[str, str]] = []
+    for i in range(0, len(files), batch_size):
+        batch = files[i : i + batch_size]
+        ok, _msg = gco.clear_batch(base_cmd, batch)
+        if ok:
+            continue
+        for f in batch:  # 整批失败时逐个重试，定位到具体文件
+            ok2, msg2 = gco.clear_batch(base_cmd, [f])
+            if not ok2:
+                failed.append((f.name, msg2[-200:]))
+
+    gco.show("清理后", gco.scan(files))
+    if failed:
+        for name, msg in failed:
+            print(f"  ⚠ 失败: {name} -> {msg}")
+        print(f"  ⚠ 共 {len(failed)} 个文件未能清空")
+    return not failed
+
+
+def print_duplicates(groups: list[dict], target: Path | None = None) -> None:
+    """打印重复检测结果：保留谁、归零谁，以及「最早」是否可判定。"""
+    if not groups:
+        print("重复检测: 未发现 md5 相同的作业\n")
+        return
+    root = target or Path(".")
+    print(f"重复检测: 发现 {len(groups)} 组 md5 相同的作业")
+    for g in groups:
+        print(f"  md5 {g['md5'][:12]}…")
+        kept = (root / g["kept"]).stat().st_mtime if (root / g["kept"]).exists() else 0
+        stamp = time.strftime("%m-%d %H:%M", time.localtime(kept)) if kept else "?"
+        print(f"    保留 {g['kept']}（修改于 {stamp}）")
+        for f in g["zeroed"]:
+            p = root / f
+            ts = time.strftime("%m-%d %H:%M", time.localtime(p.stat().st_mtime)) if p.exists() else "?"
+            print(f"    归零 {f}（修改于 {ts}）")
+        if g["tie"]:
+            print("    ⚠ 最早两份修改时间相同，无法判定先后，已按文件名取第一份")
+    print()
+
+
 def print_table(results: list[Result], show_detail: bool = True) -> None:
     width = max([len(r["name"] + r["student_id"]) for r in results] + [8])
     print(
@@ -461,6 +584,7 @@ def print_table(results: list[Result], show_detail: bool = True) -> None:
                 + [f"⚠{esc(p)}" for p in r["hit_penalties"]]
                 + [f"📝{p}" for p in r["missing_md"]]
                 + [f"🌳{p}" for p in r["ast_hits"]]
+                + ([f"⧉同{r['duplicate_of']}"] if r["duplicate_of"] else [])
             )
             or "无"
         )
@@ -510,6 +634,21 @@ def main() -> None:
         help="--fill 时显式指定工作表名（目录名无法推出，如 24智能1班-... → 智能B241）",
     )
     parser.add_argument(
+        "--no-dedup",
+        action="store_true",
+        help="关闭重复检测（默认开启：md5 相同的作业只给最早修改的一份分数，其余记 0）",
+    )
+    parser.add_argument(
+        "--clear-outputs",
+        action="store_true",
+        help="收尾清空 notebook 输出（复用 grader_clear_outputs；恒在最后一步）",
+    )
+    parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="--clear-outputs 时不再生成清理前 zip 备份",
+    )
+    parser.add_argument(
         "--quiet", action="store_true", help="只打印汇总表，不逐份列出缺失项"
     )
     parser.add_argument(
@@ -546,7 +685,7 @@ def main() -> None:
     for key, pts in dropped_p:
         print(f"本次豁免罚分: '{esc(key)}'（原命中扣 {pts}）")
     print(
-        f"目录: {target}  |  实验号: {exp}  |  课程族: {'CV' if is_cv(target.name) else ('ML' if target.name.startswith(ML_PREFIXES) else '?')}"
+        f"目录: {target}  |  实验号: {exp}  |  课程族: {'CV' if is_cv(target.name) else ('ML' if is_ml(target.name) else '?')}"
     )
     if rules.excluded:
         print(f"本章永久排除: {'、'.join(repr(esc(k)) for k in rules.excluded)}")
@@ -555,6 +694,11 @@ def main() -> None:
     )
 
     results = [grade_file(p, rules) for p in files]
+
+    duplicates: list[dict] = []
+    if not args.no_dedup:
+        duplicates = apply_duplicate_policy(results, files)
+        print_duplicates(duplicates, target)
 
     if args.apply:
         for p, r in zip(files, results):
@@ -577,10 +721,15 @@ def main() -> None:
             "md_goals": rules.md_goals,
             "ast_checks": rules.ast_checks,
             "excluded": rules.excluded,
+            "duplicates": duplicates,
             "count": len(results),
             "average": round(sum(r["score"] for r in results) / len(results), 2),
             "files": results,
         }
+        # 同一目录分批批改时，先留一份上一批的汇总，避免被覆盖后细节无处可查
+        summary_path = reports_dir / "summary.json"
+        if summary_path.exists():
+            summary_path.replace(reports_dir / "summary.prev.json")
         (reports_dir / "summary.json").write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
@@ -588,6 +737,11 @@ def main() -> None:
 
     if args.fill:
         fill_scores(results, target.name, exp, repo_root, reports_dir, args.sheet)
+
+    # 最后一步：清空输出。必须放在改名与登记之后，否则 mtime 被刷新，后续无法复核
+    if args.clear_outputs:
+        if not clear_outputs(target, backup_zip=not args.no_backup):
+            raise SystemExit("清理未全部成功，见上方失败列表")
 
 
 if __name__ == "__main__":
