@@ -90,6 +90,8 @@ class Result(TypedDict):
     md5: str
     duplicate_of: str
     """若非空，说明该文件与 ``duplicate_of`` 字节级相同，且不是最早提交的那份（得分已置 0）。"""
+    blank: bool
+    """空提交：从未执行且注释剔除后不含任何 ``cv2.`` 调用，得分为 0。"""
 
 
 @dataclass
@@ -218,6 +220,24 @@ def code_of(nb: dict) -> str:
         src = cell.get("source", [])
         parts.append("".join(src) if isinstance(src, list) else str(src))
     return "".join(parts)
+
+
+def strip_comments(code: str) -> str:
+    """剔除 ``#`` 行注释，用于区分「真写了代码」与「只留着模板里的 TODO 提示」。"""
+    return "\n".join(line.split("#", 1)[0] for line in code.splitlines())
+
+
+def is_blank_submission(nb: dict) -> bool:
+    """判定空提交：所有 code cell 从未执行（无 outputs 且 execution_count 全为 None），
+    且剔除注释后不含任何 ``cv2.`` 调用——即只剩 import 与模板骨架。"""
+    cells = [c for c in nb.get("cells", []) if c.get("cell_type") == "code"]
+    if not cells:
+        return False
+    if any(c.get("outputs") for c in cells):
+        return False
+    if any(c.get("execution_count") is not None for c in cells):
+        return False
+    return re.search(r"\bcv2\.", strip_comments(code_of(nb))) is None
 
 
 def md_of(nb: dict) -> str:
@@ -371,6 +391,9 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
             ast_hits.append(check)
 
     score = max(0, init_score - violations)
+    blank = is_blank_submission(nb)
+    if blank:
+        score = 0
     _task, sid, name = parse_name(path)
     return Result(
         file=path.name,
@@ -383,6 +406,7 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
         ast_hits=ast_hits,
         md5=file_md5(path),
         duplicate_of="",
+        blank=blank,
     )
 
 
@@ -395,16 +419,47 @@ def file_md5(path: Path) -> str:
     return h.hexdigest()
 
 
-def apply_duplicate_policy(results: list[Result], files: list[Path]) -> list[dict]:
-    """按 md5 分组：内容完全相同的作业里，只保留修改时间最早的一份得分，其余全部记 0。
+def path_created(p: Path) -> float:
+    """文件创建时间。Windows 的 ``st_ctime`` 即创建时间（新版解释器另有 ``st_birthtime``）；
+    POSIX 无出生时间时退回 ``st_ctime``（inode 变更时间，仅作近似）。"""
+    st = p.stat()
+    return getattr(st, "st_birthtime", st.st_ctime)
 
-    返回重复组（供打印与报告），每组形如
-    ``{"md5": ..., "kept": 文件名, "zeroed": [文件名, ...], "tie": bool}``。
 
-    ``tie=True`` 表示最早的两份修改时间相同（秒级），此时「最早」不可判定，
-    仅按文件名排序取第一份，并在调用方给出警告。
+def choose_time_key(
+    files: list[Path], mode: str = "auto"
+) -> tuple[str, dict[str, float]]:
+    """选定排序所用时间戳，返回 ``(键名, {文件名: 时间})``。
+
+    ``auto``：全批 mtime 跨度不足 60 秒即判为批量拷贝/解压产生的时间戳（真实提交不会集中
+    在这一窗口），改用创建时间——它至少保留「写入本目录的先后」，比被抹平的 mtime 更接近
+    真实提交顺序。跨度足够时沿用修改时间。
     """
     mtimes = {p.name: p.stat().st_mtime for p in files}
+    span = max(mtimes.values()) - min(mtimes.values()) if mtimes else 0.0
+    if mode == "mtime":
+        return "mtime", mtimes
+    if mode == "ctime":
+        return "ctime", {p.name: path_created(p) for p in files}
+    if mode == "auto":
+        if len(files) > 1 and span < 60:
+            return "ctime", {p.name: path_created(p) for p in files}
+        return "mtime", mtimes
+    raise SystemExit(f"未知的 --dedup-key 取值: {mode}")
+
+
+def apply_duplicate_policy(
+    results: list[Result], files: list[Path], key: str = "auto"
+) -> tuple[list[dict], str]:
+    """按 md5 分组：内容完全相同的作业里，只保留时间最早的一份得分，其余全部记 0。
+
+    返回 ``(重复组, 实际使用的时间键)``，每组形如
+    ``{"md5", "time_key", "kept", "kept_time", "zeroed": [{"file","time"}], "tie"}``。
+
+    ``tie=True`` 表示最早的两份时间戳相同（秒级），此时「最早」不可判定，
+    仅按文件名排序取第一份，并在调用方给出警告。
+    """
+    used_key, times = choose_time_key(files, key)
     groups: dict[str, list[Result]] = {}
     for r in results:
         groups.setdefault(r["md5"], []).append(r)
@@ -413,19 +468,26 @@ def apply_duplicate_policy(results: list[Result], files: list[Path]) -> list[dic
     for digest, members in groups.items():
         if len(members) < 2:
             continue
-        # 先按修改时间、再按文件名排序；文件名兜底只为让结果确定，不代表提交先后
-        members.sort(key=lambda r: (mtimes.get(r["file"], 0.0), r["file"]))
+        # 先按时间、再按文件名排序；文件名兜底只为让结果确定，不代表提交先后
+        members.sort(key=lambda r: (times.get(r["file"], 0.0), r["file"]))
         keeper = members[0]
-        tie = len(members) > 1 and mtimes.get(members[1]["file"]) == mtimes.get(keeper["file"])
-        zeroed: list[str] = []
+        tie = times.get(members[1]["file"]) == times.get(keeper["file"])
+        zeroed: list[dict] = []
         for r in members[1:]:
             r["score"] = 0
             r["duplicate_of"] = keeper["file"]
-            zeroed.append(r["file"])
+            zeroed.append({"file": r["file"], "time": times.get(r["file"], 0.0)})
         report.append(
-            {"md5": digest, "kept": keeper["file"], "zeroed": zeroed, "tie": tie}
+            {
+                "md5": digest,
+                "time_key": used_key,
+                "kept": keeper["file"],
+                "kept_time": times.get(keeper["file"], 0.0),
+                "zeroed": zeroed,
+                "tie": tie,
+            }
         )
-    return report
+    return report, used_key
 
 
 def rename_by_score(path: Path, score: int) -> Path:
@@ -550,24 +612,26 @@ def clear_outputs(root: Path, *, backup_zip: bool = True, batch_size: int = 20) 
     return not failed
 
 
-def print_duplicates(groups: list[dict], target: Path | None = None) -> None:
-    """打印重复检测结果：保留谁、归零谁，以及「最早」是否可判定。"""
+def print_duplicates(
+    groups: list[dict], target: Path | None = None, key: str = "mtime"
+) -> None:
+    """打印重复检测结果：保留谁、归零谁，以及所用时间键与「最早」是否可判定。"""
     if not groups:
         print("重复检测: 未发现 md5 相同的作业\n")
         return
-    root = target or Path(".")
-    print(f"重复检测: 发现 {len(groups)} 组 md5 相同的作业")
+    label = "修改于" if key == "mtime" else "创建于"
+    print(
+        f"重复检测: 发现 {len(groups)} 组 md5 相同的作业（按{'修改' if key == 'mtime' else '创建'}时间排序）"
+    )
     for g in groups:
         print(f"  md5 {g['md5'][:12]}…")
-        kept = (root / g["kept"]).stat().st_mtime if (root / g["kept"]).exists() else 0
-        stamp = time.strftime("%m-%d %H:%M", time.localtime(kept)) if kept else "?"
-        print(f"    保留 {g['kept']}（修改于 {stamp}）")
-        for f in g["zeroed"]:
-            p = root / f
-            ts = time.strftime("%m-%d %H:%M", time.localtime(p.stat().st_mtime)) if p.exists() else "?"
-            print(f"    归零 {f}（修改于 {ts}）")
+        stamp = time.strftime("%m-%d %H:%M:%S", time.localtime(g["kept_time"]))
+        print(f"    保留 {g['kept']}（{label} {stamp}）")
+        for z in g["zeroed"]:
+            ts = time.strftime("%m-%d %H:%M:%S", time.localtime(z["time"]))
+            print(f"    归零 {z['file']}（{label} {ts}）")
         if g["tie"]:
-            print("    ⚠ 最早两份修改时间相同，无法判定先后，已按文件名取第一份")
+            print(f"    ⚠ 最早两份{label}时间相同，无法判定先后，已按文件名取第一份")
     print()
 
 
@@ -584,6 +648,7 @@ def print_table(results: list[Result], show_detail: bool = True) -> None:
                 + [f"⚠{esc(p)}" for p in r["hit_penalties"]]
                 + [f"📝{p}" for p in r["missing_md"]]
                 + [f"🌳{p}" for p in r["ast_hits"]]
+                + (["⛔空白提交"] if r["blank"] else [])
                 + ([f"⧉同{r['duplicate_of']}"] if r["duplicate_of"] else [])
             )
             or "无"
@@ -636,7 +701,14 @@ def main() -> None:
     parser.add_argument(
         "--no-dedup",
         action="store_true",
-        help="关闭重复检测（默认开启：md5 相同的作业只给最早修改的一份分数，其余记 0）",
+        help="关闭重复检测（默认开启：md5 相同的作业只给最早一份分数，其余记 0）",
+    )
+    parser.add_argument(
+        "--dedup-key",
+        choices=["auto", "mtime", "ctime"],
+        default="auto",
+        help="重复检测按哪个时间判先后：auto（默认，mtime 跨度<60 秒视为拷贝产物则改用创建时间）"
+        " / mtime / ctime",
     )
     parser.add_argument(
         "--clear-outputs",
@@ -697,8 +769,8 @@ def main() -> None:
 
     duplicates: list[dict] = []
     if not args.no_dedup:
-        duplicates = apply_duplicate_policy(results, files)
-        print_duplicates(duplicates, target)
+        duplicates, used_key = apply_duplicate_policy(results, files, args.dedup_key)
+        print_duplicates(duplicates, target, used_key)
 
     if args.apply:
         for p, r in zip(files, results):
