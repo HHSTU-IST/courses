@@ -38,10 +38,14 @@
 
     批改 → 重复检测归零 → 改名 → 成绩表 → 清空输出
 
-重复检测（默认开启）：md5 完全相同的作业只保留**修改时间最早**的一份得分，其余记 0，
-可用 ``--no-dedup`` 关闭。注意清空输出会用 nbconvert 重写文件、把所有 mtime 刷成同一时刻，
+重复检测（默认开启）：同码作业只保留一份得分，其余记 0，可用 ``--no-dedup`` 关闭。
+主键默认是**代码级哈希**（``--dedup-by code``，剔除 outputs 与执行序号），因为整文件 md5
+会被运行产物遮挡——同一份代码各自跑一遍就哈希不同，抄袭关系要等清空输出才暴露。
+保留谁按**署名 → 时间戳**两级证据判定：文件自身声明的作者（``metadata.authors`` /
+正文「学号：」）优先，作者不在本批则整组归零；无署名才退回时间。
+注意清空输出会用 nbconvert 重写文件、把所有 mtime 刷成同一时刻，
 **之后重跑无法复原提交先后**（会退化成「按文件名取第一份」并告警）；
-需要追溯上一轮判定时看 ``reports/<目录>/summary.prev.json`` 的 ``duplicates`` 字段。
+需要追溯上一轮判定时看 ``reports/<目录>/summary.json`` 的 ``duplicates`` 字段。
 """
 
 from __future__ import annotations
@@ -88,8 +92,15 @@ class Result(TypedDict):
     missing_md: list[str]
     ast_hits: list[str]
     md5: str
+    """整文件 md5（含 outputs），仅作参考与跨批追溯。"""
+    code_md5: str
+    """代码级 md5（剔除 outputs / execution_count），查重的实际主键。"""
     duplicate_of: str
     """若非空，说明该文件与 ``duplicate_of`` 字节级相同，且不是最早提交的那份（得分已置 0）。"""
+    dup_reason: str
+    """``"same"`` 同组副本；``"author-absent"`` 同组副本且组内无人是文件声明的作者。"""
+    author_id: str
+    """文件自身声明的作者学号（metadata.authors 或正文「学号：」），无则为空。"""
     blank: bool
     """空提交：从未执行且注释剔除后不含任何 ``cv2.`` 调用，得分为 0。"""
 
@@ -251,6 +262,24 @@ def md_of(nb: dict) -> str:
     return "".join(parts)
 
 
+AUTHOR_ID_RE = re.compile(r"学号\s*[：:]\s*(\d{10})")
+
+
+def detect_author(nb: dict) -> str:
+    """从 notebook 自身提取作者学号，作为查重的顺序证据（比被拷贝抹平的时间戳可靠）。
+
+    优先读 ``metadata.authors[].student_id``（Jupyter 首次运行时写入，改名/拷贝不会变），
+    退回正文 markdown 里的「学号：xxxxxxxxxx」。都取不到则返回空串。
+    """
+    for entry in nb.get("metadata", {}).get("authors") or []:
+        if isinstance(entry, dict):
+            sid = entry.get("student_id")
+            if sid is not None and str(sid).strip().isdigit():
+                return str(sid).strip()
+    found = AUTHOR_ID_RE.search(md_of(nb))
+    return found.group(1) if found else ""
+
+
 def _affine_code_for_ast(nb: dict) -> str:
     """拼接 code cell，逐个以换行分隔，避免相邻单元格的行粘连，便于 ast 解析。"""
     blocks = []
@@ -405,7 +434,10 @@ def grade_file(path: Path, rules: RuleSet, init_score: int = INIT_SCORE) -> Resu
         missing_md=missing_md,
         ast_hits=ast_hits,
         md5=file_md5(path),
+        code_md5=code_hash(nb),
         duplicate_of="",
+        dup_reason="",
+        author_id=detect_author(nb),
         blank=blank,
     )
 
@@ -417,6 +449,21 @@ def file_md5(path: Path) -> str:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def code_hash(nb: dict) -> str:
+    """只对 code cell 源码算 md5（剔除 outputs 与 execution_count）。
+
+    整文件 md5 会被运行产物遮挡：同一份代码各自跑过一遍，输出不同则哈希不同，
+    抄袭关系要到清空输出后才暴露。代码哈希从一开始就能抓到。
+    """
+    blocks: list[str] = []
+    for cell in nb.get("cells", []):
+        if cell.get("cell_type") != "code":
+            continue
+        src = cell.get("source", [])
+        blocks.append("".join(src) if isinstance(src, list) else str(src))
+    return hashlib.md5("\n\x00\n".join(blocks).encode("utf-8")).hexdigest()
 
 
 def path_created(p: Path) -> float:
@@ -449,37 +496,86 @@ def choose_time_key(
 
 
 def apply_duplicate_policy(
-    results: list[Result], files: list[Path], key: str = "auto"
+    results: list[Result], files: list[Path], key: str = "auto", by: str = "code"
 ) -> tuple[list[dict], str]:
-    """按 md5 分组：内容完全相同的作业里，只保留时间最早的一份得分，其余全部记 0。
+    """按 md5 分组：内容完全相同的作业里，只保留一份得分，其余全部记 0。
+
+    保留谁按两级证据判定：
+
+    1. **署名**——文件自身声明的作者（``metadata.authors`` / 正文「学号：」）若出现在组内，
+       保留该作者；若声明作者不在组内（跨班流通、代交），整组归零。
+       这是顺序证据，改名、拷贝、批量解压都不会篡改它。
+    2. **时间**——组内无任何署名时退回时间戳，取最早者；同一时刻按文件名兜底。
 
     返回 ``(重复组, 实际使用的时间键)``，每组形如
-    ``{"md5", "time_key", "kept", "kept_time", "zeroed": [{"file","time"}], "tie"}``。
-
-    ``tie=True`` 表示最早的两份时间戳相同（秒级），此时「最早」不可判定，
-    仅按文件名排序取第一份，并在调用方给出警告。
+    ``{"md5", "code_md5", "file_md5", "policy", "author_id", "time_key", "kept",
+    "kept_time", "zeroed", "tie"}``，``policy`` 取 ``authorship`` / ``author-absent`` / ``time``。
+    ``by="code"`` 以代码级哈希分组（默认），``by="file"`` 退回整文件 md5。
     """
     used_key, times = choose_time_key(files, key)
     groups: dict[str, list[Result]] = {}
     for r in results:
-        groups.setdefault(r["md5"], []).append(r)
+        groups.setdefault(r["code_md5"] if by == "code" else r["md5"], []).append(r)
 
     report: list[dict] = []
     for digest, members in groups.items():
         if len(members) < 2:
             continue
-        # 先按时间、再按文件名排序；文件名兜底只为让结果确定，不代表提交先后
-        members.sort(key=lambda r: (times.get(r["file"], 0.0), r["file"]))
-        keeper = members[0]
-        tie = times.get(members[1]["file"]) == times.get(keeper["file"])
+        # 组内文件字节相同，署名也必然相同，取第一个非空即可
+        author = next((r["author_id"] for r in members if r["author_id"]), "")
+        mine = [r for r in members if author and r["student_id"] == author]
+
+        if author and not mine:
+            # 声明作者不在本批提交者中：没有合法保留者，整组归零
+            for r in members:
+                r["score"] = 0
+                r["duplicate_of"] = ""
+                r["dup_reason"] = "author-absent"
+            report.append(
+                {
+                    "md5": digest,
+                    "code_md5": members[0]["code_md5"],
+                    "file_md5": members[0]["md5"],
+                    "policy": "author-absent",
+                    "author_id": author,
+                    "time_key": used_key,
+                    "kept": None,
+                    "kept_time": None,
+                    "zeroed": [
+                        {"file": r["file"], "time": times.get(r["file"], 0.0)}
+                        for r in members
+                    ],
+                    "tie": False,
+                }
+            )
+            continue
+
+        if mine:
+            keeper = mine[0]
+            policy = "authorship"
+            tie = False
+        else:
+            # 先按时间、再按文件名排序；文件名兜底只为让结果确定，不代表提交先后
+            members.sort(key=lambda r: (times.get(r["file"], 0.0), r["file"]))
+            keeper = members[0]
+            policy = "time"
+            tie = times.get(members[1]["file"]) == times.get(keeper["file"])
+
         zeroed: list[dict] = []
-        for r in members[1:]:
+        for r in members:
+            if r["file"] == keeper["file"]:
+                continue
             r["score"] = 0
             r["duplicate_of"] = keeper["file"]
+            r["dup_reason"] = "same"
             zeroed.append({"file": r["file"], "time": times.get(r["file"], 0.0)})
         report.append(
             {
                 "md5": digest,
+                "code_md5": keeper["code_md5"],
+                "file_md5": keeper["md5"],
+                "policy": policy,
+                "author_id": author,
                 "time_key": used_key,
                 "kept": keeper["file"],
                 "kept_time": times.get(keeper["file"], 0.0),
@@ -613,24 +709,38 @@ def clear_outputs(root: Path, *, backup_zip: bool = True, batch_size: int = 20) 
 
 
 def print_duplicates(
-    groups: list[dict], target: Path | None = None, key: str = "mtime"
+    groups: list[dict], target: Path | None = None, key: str = "mtime", by: str = "code"
 ) -> None:
-    """打印重复检测结果：保留谁、归零谁，以及所用时间键与「最早」是否可判定。"""
+    """打印重复检测结果：判定依据、保留谁、归零谁。"""
     if not groups:
-        print("重复检测: 未发现 md5 相同的作业\n")
+        print("重复检测: 未发现同码作业\n")
         return
     label = "修改于" if key == "mtime" else "创建于"
+    policies = {
+        "authorship": "署名",
+        "author-absent": "署名（作者不在本批）",
+        "time": "时间戳",
+    }
     print(
-        f"重复检测: 发现 {len(groups)} 组 md5 相同的作业（按{'修改' if key == 'mtime' else '创建'}时间排序）"
+        f"重复检测: 发现 {len(groups)} 组同码作业（主键: {'代码哈希' if by == 'code' else '整文件 md5'}）"
     )
     for g in groups:
-        print(f"  md5 {g['md5'][:12]}…")
-        stamp = time.strftime("%m-%d %H:%M:%S", time.localtime(g["kept_time"]))
-        print(f"    保留 {g['kept']}（{label} {stamp}）")
+        policy = g.get("policy", "time")
+        digest = g.get("code_md5") if by == "code" else g.get("file_md5")
+        print(
+            f"  {'code' if by == 'code' else 'md5'} {(digest or g['md5'])[:12]}…  判定依据: {policies.get(policy, policy)}"
+        )
+        if g["kept"]:
+            stamp = time.strftime("%m-%d %H:%M:%S", time.localtime(g["kept_time"]))
+            print(f"    保留 {g['kept']}（{label} {stamp}）")
+        else:
+            print(
+                f"    整组归零：文件声明作者为 {g.get('author_id') or '未知'}，不在本批提交者中"
+            )
         for z in g["zeroed"]:
             ts = time.strftime("%m-%d %H:%M:%S", time.localtime(z["time"]))
             print(f"    归零 {z['file']}（{label} {ts}）")
-        if g["tie"]:
+        if g.get("tie"):
             print(f"    ⚠ 最早两份{label}时间相同，无法判定先后，已按文件名取第一份")
     print()
 
@@ -650,6 +760,7 @@ def print_table(results: list[Result], show_detail: bool = True) -> None:
                 + [f"🌳{p}" for p in r["ast_hits"]]
                 + (["⛔空白提交"] if r["blank"] else [])
                 + ([f"⧉同{r['duplicate_of']}"] if r["duplicate_of"] else [])
+                + (["⛔非本批作者"] if r["dup_reason"] == "author-absent" else [])
             )
             or "无"
         )
@@ -701,7 +812,13 @@ def main() -> None:
     parser.add_argument(
         "--no-dedup",
         action="store_true",
-        help="关闭重复检测（默认开启：md5 相同的作业只给最早一份分数，其余记 0）",
+        help="关闭重复检测（默认开启：同码作业只给一份分数，其余记 0）",
+    )
+    parser.add_argument(
+        "--dedup-by",
+        choices=["code", "file"],
+        default="code",
+        help="查重主键：code = 剔除 outputs/执行序号后的代码哈希（默认，可抓同码不同跑）；file = 整文件 md5",
     )
     parser.add_argument(
         "--dedup-key",
@@ -769,8 +886,10 @@ def main() -> None:
 
     duplicates: list[dict] = []
     if not args.no_dedup:
-        duplicates, used_key = apply_duplicate_policy(results, files, args.dedup_key)
-        print_duplicates(duplicates, target, used_key)
+        duplicates, used_key = apply_duplicate_policy(
+            results, files, args.dedup_key, args.dedup_by
+        )
+        print_duplicates(duplicates, target, used_key, args.dedup_by)
 
     if args.apply:
         for p, r in zip(files, results):
