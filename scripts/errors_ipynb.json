@@ -83,6 +83,9 @@
         "cv2.norm": 5,
         "cv2.HOGDescriptor": 5
     },
+    "ipynb+v6-exclude": [
+        "\n_"
+    ],
     "ipynb+v6": {
         "cv2.pyrDown": 5,
         "cv2.cornerHarris": 5,
